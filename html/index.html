@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Balance and Transfer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .balance {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .transfer-form {
+            margin-top: 20px;
+        }
+        .transfer-form input, .transfer-form button {
+            margin-bottom: 10px;
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .transfer-form button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .transfer-form button:hover {
+            background-color: #45a049;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>BrokerChain Wallet</h1>
+    <br/>
+    <h1>Account</h1>
+    <div id="balance" class="balance">Loading Balance...</div>
+    <div id="addr" class="balance">Loading Address...</div>
+
+    <h1>Transfer</h1>
+    <div class="transfer-form">
+        <input type="text" id="recipientAddress" placeholder="Recipient Address" required>
+        <input type="text" id="amount" placeholder="Amount" required>
+        <input type="text" id="fee" placeholder="Fee" >
+        <button onclick="transfer()">Transfer</button>
+        <div id="status" class="status"></div>
+    </div>
+</div>
+
+<script>
+    // 定时从后端获取账户余额
+    function fetchBalance() {
+        fetch('/api/balance')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('balance').textContent = `Your Account's Balance: ${data.balance}`;
+                document.getElementById('addr').textContent = `Your Account's Address: ${data.addr}`;
+            })
+            .catch(error => {
+                console.error('Error fetching balance:', error);
+            });
+    }
+
+    // 初始加载时获取余额
+    fetchBalance();
+
+    // 每2秒刷新一次余额
+    setInterval(fetchBalance, 2000);
+
+    // 转账功能
+    function transfer() {
+        const recipientAddress = document.getElementById('recipientAddress').value;
+        const amount = document.getElementById('amount').value;
+        const fee = document.getElementById('fee').value;
+
+        fetch('/api/transfer', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                recipientAddress: recipientAddress,
+                amount: amount,
+                fee: fee
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                const statusDiv = document.getElementById('status');
+                if (data.message.includes('successful')) {
+                    statusDiv.textContent = 'Transfer successful!';
+                    statusDiv.className = 'status success';
+                } else {
+                    statusDiv.textContent = 'Transfer failed: ' + data.message;
+                    statusDiv.className = 'status error';
+                }
+            })
+            .catch(error => {
+                console.error('Error transferring:', error);
+                const statusDiv = document.getElementById('status');
+                statusDiv.textContent = 'Transfer failed: ' + error.message;
+                statusDiv.className = 'status error';
+            });
+    }
+</script>
+</body>
+</html>
