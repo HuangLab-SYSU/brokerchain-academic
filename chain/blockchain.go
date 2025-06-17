@@ -25,11 +25,11 @@ import (
 )
 
 type BlockChain struct {
-	db           ethdb.Database      // the leveldb database to store in the disk, for status trie
+	Db           ethdb.Database      // the leveldb database to store in the disk, for status trie
 	Triedb       *trie.Database      // the trie database which helps to store the status trie
 	ChainConfig  *params.ChainConfig // the chain configuration, which can help to identify the chain
 	CurrentBlock *core.Block         // the top block in this blockchain
-	Storage      *storage.Storage    // Storage is the bolt-db to store the blocks
+	Storage      *storage.Storage    // Storage is the bolt-Db to store the blocks
 	Txpool       *core.TxPool        // the transaction pool
 	PartitionMap map[string]uint64   // the partition map which is defined by some algorithm can help account parition
 	pmlock       sync.RWMutex
@@ -199,8 +199,8 @@ func (bc *BlockChain) NewGenisisBlock() *core.Block {
 	bh := &core.BlockHeader{
 		Number: 0,
 	}
-	// build a new trie database by db
-	triedb := trie.NewDatabaseWithConfig(bc.db, &trie.Config{
+	// build a new trie database by Db
+	triedb := trie.NewDatabaseWithConfig(bc.Db, &trie.Config{
 		Cache:     0,
 		Preimages: true,
 	})
@@ -254,7 +254,7 @@ func NewBlockChain2(cc *params.ChainConfig, db ethdb.Database, r string) (*Block
 	chainDBfp := params.DatabaseWrite_path + "chainDB/"+ r
 
 	bc := &BlockChain{
-		db:           db,
+		Db:           db,
 		ChainConfig:  cc,
 		Txpool:       core.NewTxPool(),
 		Storage:      storage.NewStorage(chainDBfp, cc),
@@ -297,7 +297,7 @@ func NewBlockChain2(cc *params.ChainConfig, db ethdb.Database, r string) (*Block
 	return bc, nil
 }
 // new a blockchain.
-// the ChainConfig is pre-defined to identify the blockchain; the db is the status trie database in disk
+// the ChainConfig is pre-defined to identify the blockchain; the Db is the status trie database in disk
 func NewBlockChain(cc *params.ChainConfig, db ethdb.Database) (*BlockChain, error) {
 	fmt.Println("Generating a new blockchain", db)
 	//chainDBfp := params.DatabaseWrite_path + fmt.Sprintf("chainDB/S%d_N%d", cc.ShardID, cc.NodeID)
@@ -315,7 +315,7 @@ func NewBlockChain(cc *params.ChainConfig, db ethdb.Database) (*BlockChain, erro
 	//}
 
 	bc := &BlockChain{
-		db:           db,
+		Db:           db,
 		ChainConfig:  cc,
 		Txpool:       core.NewTxPool(),
 		Storage:      storage.NewStorage(chainDBfp, cc),
@@ -455,7 +455,7 @@ func (bc *BlockChain) FetchAccounts(addrs []string) []*core.AccountState {
 func (bc *BlockChain) CloseBlockChain() {
 	bc.Storage.DataBase.Close()
 	bc.Triedb.CommitPreimages()
-	bc.db.Close()
+	bc.Db.Close()
 }
 
 // print the details of a blockchain

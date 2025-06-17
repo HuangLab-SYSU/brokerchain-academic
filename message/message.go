@@ -62,6 +62,7 @@ type Commit struct {
 	Digest     []byte // To identify which request is prepared by this node
 	SeqID      uint64
 	SenderNode *shard.Node // To identify who send this message
+	Answer string
 }
 
 type Reply struct {

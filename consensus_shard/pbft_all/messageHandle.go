@@ -20,7 +20,10 @@ import (
 	"log"
 	"math/big"
 	"net/http"
+	"runtime"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -34,6 +37,9 @@ func (p *PbftConsensusNode) Propose() {
 	go func() {
 		// go into the next round
 		for {
+			if p.stopSignal.Load() {
+				return
+			}
 			time.Sleep(time.Duration(int64(p.pbftChainConfig.BlockInterval)) * time.Millisecond)
 			// send a signal to another GO-Routine. It will block until a GO-Routine try to fetch data from this channel.
 			for p.pbftStage.Load() != 1 {
@@ -46,10 +52,47 @@ func (p *PbftConsensusNode) Propose() {
 	go func() {
 		// check whether to view change
 		for {
+			if p.stopSignal.Load() {
+				return
+			}
 			time.Sleep(time.Second)
 			if time.Now().UnixMilli()-p.lastCommitTime.Load() > int64(params.PbftViewChangeTimeOut) {
 				p.lastCommitTime.Store(time.Now().UnixMilli())
 				go p.viewChangePropose()
+			}
+		}
+	}()
+
+	go func() {
+		// check whether to view change
+		for {
+			time.Sleep(time.Second)
+			if time.Now().UnixMilli()-p.lastCommitTime2.Load() > int64(45000) {
+				p.pStop <- 1
+				p.stopSignal.Store(true)
+				if global.Conn != nil {
+					global.Conn.Close()
+				}
+				go func() {
+					defer func() {
+						if err := recover(); err != nil {
+							fmt.Println(err)
+						}
+					}()
+					p.tcpln.Close()
+				}()
+
+				go func() {
+					defer func() {
+						if err := recover(); err != nil {
+							fmt.Println(err)
+						}
+					}()
+					p.CurChain.Storage.DataBase.Close()
+					p.CurChain.Triedb.CommitPreimages()
+					p.CurChain.Db.Close()
+				}()
+				return
 			}
 		}
 	}()
@@ -157,6 +200,42 @@ func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
 		p.pbftStage.Add(1)
 	}
 }
+func convertTo32ByteArray(input []byte) [32]byte {
+	var result [32]byte
+	copy(result[:], input)
+	return result
+}
+func worker(wg *sync.WaitGroup, start, end int, problem string, blockhash [32]byte, difficulty int, resultChan chan<- int, flag *atomic.Bool, uid string) {
+	defer wg.Done()
+	s := problem
+	previ := start
+	for i := start; i < end; i++ {
+		if i-previ > 100 {
+			previ = i
+			if flag.Load() {
+				return
+			}
+		}
+		sum256 := sha256.Sum256([]byte(s + uid + strconv.Itoa(i)))
+		if check(sum256, blockhash, difficulty) {
+			resultChan <- i
+			return
+		}
+	}
+}
+func check(arr [32]byte, arr2 [32]byte, difficulty int) bool {
+	count := 0
+	for i := 0; i < 32 && count < difficulty; i++ {
+		for j := 0; j < 8 && count < difficulty; j++ {
+			if (arr[i] & (1 << (7 - j))) != (arr2[i] & (1 << (7 - j))) {
+				return false
+			} else {
+				count++
+			}
+		}
+	}
+	return true
+}
 
 // Handle prepare messages here.
 // If you want to do more operations in the prepare stage, you can implement the interface "ExtraOpInConsensus",
@@ -199,11 +278,69 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 		defer p.lock.Unlock()
 		if uint64(cnt) >= 2*p.malicious_nums+1 && !p.isCommitBordcast[string(pmsg.Digest)] {
 			p.pl.Plog.Printf("S%dN%d : is going to commit\n", p.ShardID, p.NodeID)
+
+			request, _ := p.requestPool[string(pmsg.Digest)]
+			answer := ""
+			if request.RequestType != message.PartitionReq {
+
+				block := core.DecodeB(request.Msg.Content)
+
+				for {
+					answer1 := ""
+					uid := uuid.New().String()
+					resultChan := make(chan int, 1)
+					doneChan := make(chan bool, 1)
+					var wg sync.WaitGroup
+					maxRange := 1000000000
+					workers := runtime.NumCPU()
+
+					problem := string(block.Hash)
+					blockhash_ := block.Hash
+					blockhash := convertTo32ByteArray(blockhash_)
+					if workers > 16 {
+						workers = 16
+					}
+					if workers < 1 {
+						workers = 1
+					}
+					wg.Add(workers)
+					perWorker := maxRange / workers
+					flag := atomic.Bool{}
+					for i := 0; i < workers; i++ {
+						start := i * perWorker
+						end := (i + 1) * perWorker
+						if i == workers-1 {
+							end = maxRange
+						}
+						go worker(&wg, start, end, problem, blockhash, 22, resultChan, &flag, uid)
+					}
+
+					go func() {
+						wg.Wait()
+						doneChan <- true
+						flag.Store(true)
+					}()
+					select {
+					case i := <-resultChan:
+						flag.Store(true)
+						answer1 = strconv.Itoa(i)
+						break
+					case <-doneChan:
+						fmt.Printf("No solution found in range %d\n", maxRange)
+					}
+					if answer1 != "" {
+						answer = uid + answer1
+						fmt.Println("answer is: " + answer)
+						break
+					}
+				}
+			}
 			// generate commit and broadcast
 			c := message.Commit{
 				Digest:     pmsg.Digest,
 				SeqID:      pmsg.SeqID,
 				SenderNode: p.RunningNode,
+				Answer:     answer,
 			}
 			commitByte, err := json.Marshal(c)
 			if err != nil {
@@ -244,7 +381,9 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 	}
 
 	p.pl.Plog.Printf("S%dN%d received the Commit from ...%d\n", p.ShardID, p.NodeID, cmsg.SenderNode.NodeID)
-	p.set2DMap(false, string(cmsg.Digest), cmsg.SenderNode)
+
+	p.set2DMap2(string(cmsg.Digest), cmsg.SenderNode, cmsg.Answer)
+
 	cnt := len(p.cntCommitConfirm[string(cmsg.Digest)])
 
 	p.lock.Lock()
@@ -281,12 +420,26 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 			p.ihm.HandleinCommit(cmsg)
 
 			if uint64(p.view.Load()) == p.NodeID {
-				m2 := p.cntCommitConfirm[string(cmsg.Digest)]
+				request := p.requestPool[string(cmsg.Digest)]
 				m3 := make([]string, 0)
-				for k, v := range m2 {
-					if v {
-						s1 := strconv.Itoa(int(k.ShardID)) + ":" + strconv.Itoa(int(k.NodeID))
-						m3 = append(m3, s1)
+				m4 := make([]string, 0)
+				if request.RequestType != message.PartitionReq {
+
+					block1 := core.DecodeB(request.Msg.Content)
+					m2 := p.cntCommitConfirm[string(cmsg.Digest)]
+
+					for k, v := range m2 {
+						if len(v) != 0 && v != "" {
+							s_ := string(block1.Hash) + v
+							arr1 := sha256.Sum256([]byte(s_))
+							arr2 := convertTo32ByteArray(block1.Hash)
+							if check(arr1, arr2, 22) {
+								//fmt.Println("验证成功："+v)
+								s1 := strconv.Itoa(int(k.ShardID)) + ":" + strconv.Itoa(int(k.NodeID))
+								m3 = append(m3, s1)
+								m4 = append(m4, v)
+							}
+						}
 					}
 				}
 				root := hex.EncodeToString(p.CurChain.CurrentBlock.Header.StateRoot)
@@ -309,6 +462,8 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 						Sign2:     sign2,
 						Root:      root,
 						Signs:     m3,
+						Signs2:    m4,
+						BlockHash: block.Hash,
 					}
 					if block.Body != nil && len(block.Body) > 0 {
 						report.Txs = block.Body
@@ -330,6 +485,7 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 
 		p.pbftStage.Store(1)
 		p.lastCommitTime.Store(time.Now().UnixMilli())
+		p.lastCommitTime2.Store(time.Now().UnixMilli())
 
 		// if this node is a main node, then unlock the sequencelock
 		if p.NodeID == uint64(p.view.Load()) {
@@ -381,13 +537,15 @@ func GetRandStrSign() (string, [32]byte) {
 }
 
 type ReportBlockReq struct {
-	PublicKey string   `json:"PublicKey" binding:"required"`
-	RandomStr string   `json:"RandomStr" binding:"required"`
-	Sign1     string   `json:"Sign1" binding:"required"`
-	Sign2     string   `json:"Sign2" binding:"required"`
-	IsLeader  string   `json:"IsLeader" binding:"required"`
-	Root      string   `json:"Root" binding:"required"`
-	Signs     []string `json:"Signs" binding:"required"`
+	PublicKey string              `json:"PublicKey" binding:"required"`
+	RandomStr string              `json:"RandomStr" binding:"required"`
+	Sign1     string              `json:"Sign1" binding:"required"`
+	Sign2     string              `json:"Sign2" binding:"required"`
+	IsLeader  string              `json:"IsLeader" binding:"required"`
+	Root      string              `json:"Root" binding:"required"`
+	Signs     []string            `json:"Signs" binding:"required"`
+	Signs2    []string            `json:"Signs2" `
+	BlockHash []byte              `json:"BlockHash" `
 	Txs       []*core.Transaction `json:"Txs"`
 }
 

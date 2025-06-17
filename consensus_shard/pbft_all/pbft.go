@@ -47,6 +47,7 @@ type PbftConsensusNode struct {
 	// view change
 	view           atomic.Int32 // denote the view of this pbft, the main node can be inferred from this variant
 	lastCommitTime atomic.Int64 // the time since last commit.
+	lastCommitTime2 atomic.Int64 // the time since last commit.
 	viewChangeMap  map[ViewChangeData]map[uint64]bool
 	newViewMap     map[ViewChangeData]map[uint64]bool
 
@@ -56,7 +57,7 @@ type PbftConsensusNode struct {
 	pStop             chan uint64                     // channle for stopping consensus
 	requestPool       map[string]*message.Request     // RequestHash to Request
 	cntPrepareConfirm map[string]map[*shard.Node]bool // count the prepare confirm message, [messageHash][Node]bool
-	cntCommitConfirm  map[string]map[*shard.Node]bool // count the commit confirm message, [messageHash][Node]bool
+	cntCommitConfirm  map[string]map[*shard.Node]string // count the commit confirm message, [messageHash][Node]bool
 	isCommitBordcast  map[string]bool                 // denote whether the commit is broadcast
 	isReply           map[string]bool                 // denote whether the message is reply
 	height2Digest     map[uint64]string               // sequence (block height) -> request, fast read
@@ -130,7 +131,7 @@ func NewPbftNode(shardID, nodeID uint64, pcc *params.ChainConfig, messageHandleT
 	p.pStop = make(chan uint64)
 	p.requestPool = make(map[string]*message.Request)
 	p.cntPrepareConfirm = make(map[string]map[*shard.Node]bool)
-	p.cntCommitConfirm = make(map[string]map[*shard.Node]bool)
+	p.cntCommitConfirm = make(map[string]map[*shard.Node]string)
 	p.isCommitBordcast = make(map[string]bool)
 	p.isReply = make(map[string]bool)
 	p.height2Digest = make(map[uint64]string)
@@ -139,6 +140,7 @@ func NewPbftNode(shardID, nodeID uint64, pcc *params.ChainConfig, messageHandleT
 	// init view & last commit time
 	p.view.Store(0)
 	p.lastCommitTime.Store(time.Now().Add(time.Second * 5).UnixMilli())
+	p.lastCommitTime2.Store(time.Now().Add(time.Second * 5).UnixMilli())
 	p.viewChangeMap = make(map[ViewChangeData]map[uint64]bool)
 	p.newViewMap = make(map[ViewChangeData]map[uint64]bool)
 
@@ -303,9 +305,15 @@ func (p *PbftConsensusNode) HandleClientRequest(con net.Conn) {
 
 func (p *PbftConsensusNode) HandleClientRequest2() {
 	for {
+		if p.stopSignal.Load() {
+			return
+		}
 		con := global.Conn
 		clientReader := bufio.NewReader(con)
 		for {
+			if p.stopSignal.Load() {
+				return
+			}
 			flag := true
 			clientRequest, err := clientReader.ReadBytes('\n')
 			if p.stopSignal.Load() {
@@ -364,7 +372,6 @@ func (p *PbftConsensusNode) TcpListen() {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-
 	for {
 		conn, err := p.tcpln.Accept()
 		if err != nil {

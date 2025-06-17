@@ -30,7 +30,7 @@ func (bc *BlockChain) TxProofGenerate(txHash []byte) TxProofResult {
 	nowheight := bc.CurrentBlock.Header.Number
 
 	for ; nowheight > 0; nowheight-- {
-		// get a block from db
+		// get a block from Db
 		block, err1 := bc.Storage.GetBlock(nowblockHash)
 		if err1 != nil {
 			return TxProofResult{

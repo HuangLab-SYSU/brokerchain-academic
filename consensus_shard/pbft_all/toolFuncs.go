@@ -25,14 +25,27 @@ func (p *PbftConsensusNode) set2DMap(isPrePareConfirm bool, key string, val *sha
 			p.cntPrepareConfirm[key] = make(map[*shard.Node]bool)
 		}
 		p.cntPrepareConfirm[key][val] = true
-	} else {
-		if _, ok := p.cntCommitConfirm[key]; !ok {
-			p.cntCommitConfirm[key] = make(map[*shard.Node]bool)
-		}
-		p.cntCommitConfirm[key][val] = true
 	}
+	//else {
+	//	if _, ok := p.cntCommitConfirm[key]; !ok {
+	//		p.cntCommitConfirm[key] = make(map[*shard.Node]bool)
+	//	}
+	//	p.cntCommitConfirm[key][val] = true
+	//}
 }
-
+func (p *PbftConsensusNode) set2DMap2( key string, val *shard.Node,answer string) {
+	//if isPrePareConfirm {
+	//	if _, ok := p.cntPrepareConfirm[key]; !ok {
+	//		p.cntPrepareConfirm[key] = make(map[*shard.Node]bool)
+	//	}
+	//	p.cntPrepareConfirm[key][val] = true
+	//} else {
+		if _, ok := p.cntCommitConfirm[key]; !ok {
+			p.cntCommitConfirm[key] = make(map[*shard.Node]string)
+		}
+		p.cntCommitConfirm[key][val] = answer
+	//}
+}
 // get neighbor nodes in a shard
 func (p *PbftConsensusNode) getNeighborNodes() []string {
 	receiverNodes := make([]string, 0)
