@@ -933,6 +933,13 @@ func Join(answer string) bool {
 	}
 	if strings.Contains(string(data), "success") {
 		return true
+	}else {
+		fmt.Println(string(data))
+		if strings.Contains(string(data),"") {
+			fmt.Println("Please do not join system using the same private key! Program will exit after 10 seconds.")
+			time.Sleep(10*time.Second)
+			os.Exit(1)
+		}
 	}
 	return false
 
