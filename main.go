@@ -935,7 +935,7 @@ func Join(answer string) bool {
 		return true
 	}else {
 		fmt.Println(string(data))
-		if strings.Contains(string(data),"") {
+		if strings.Contains(string(data),"do not join system using the same private key") {
 			fmt.Println("Please do not join system using the same private key! Program will exit after 10 seconds.")
 			time.Sleep(10*time.Second)
 			os.Exit(1)
