@@ -28,6 +28,7 @@ const (
 	CSeqIDinfo MessageType = "SequenceID"
 	CShardChange MessageType = "ShardChange"
 	CReconfig    MessageType = "ConfigAcc"
+	CPing        MessageType = "Ping"
 )
 
 var (

@@ -220,6 +220,8 @@ func (p *PbftConsensusNode) handleMessage(msg []byte) {
 
 	case message.CStop:
 		p.WaitToStop()
+	case message.CPing:
+		break
 
 	case message.CShardChange:
 		{

@@ -383,6 +383,7 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 	p.pl.Plog.Printf("S%dN%d received the Commit from ...%d\n", p.ShardID, p.NodeID, cmsg.SenderNode.NodeID)
 
 	p.set2DMap2(string(cmsg.Digest), cmsg.SenderNode, cmsg.Answer)
+	//p.set2DMap(false,string(cmsg.Digest), cmsg.SenderNode)
 
 	cnt := len(p.cntCommitConfirm[string(cmsg.Digest)])
 
@@ -423,6 +424,13 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 				request := p.requestPool[string(cmsg.Digest)]
 				m3 := make([]string, 0)
 				m4 := make([]string, 0)
+				//m2 := p.cntCommitConfirm[string(cmsg.Digest)]
+				//for k, v := range m2 {
+				//	if v {
+				//		s1 := strconv.Itoa(int(k.ShardID)) + ":" + strconv.Itoa(int(k.NodeID))
+				//		m3 = append(m3, s1)
+				//	}
+				//}
 				if request.RequestType != message.PartitionReq {
 
 					block1 := core.DecodeB(request.Msg.Content)

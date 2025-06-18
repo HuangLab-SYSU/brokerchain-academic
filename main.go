@@ -42,7 +42,6 @@ var (
 	nodeNum  int
 	shardID  int
 	nodeID   int
-
 )
 
 func Get(url string, data []byte) ([]byte, error) {
@@ -144,13 +143,13 @@ func GetAddress() string {
 	address := hex.EncodeToString(hash2)
 	return address
 }
-func printbanner(){
+func printbanner() {
 	fmt.Println(" ______                  __                       ______  __               _\n|_   _ \\                [  |  _                 .' ___  |[  |             (_)           \n  | |_) | _ .--.   .--.  | | / ] .---.  _ .--. / .'   \\_| | |--.   ,--.   __   _ .--.   \n  |  __'.[ `/'`\\]/ .'`\\ \\| '' < / /__\\\\[ `/'`\\]| |        | .-. | `'_\\ : [  | [ `.-. |  \n _| |__) || |    | \\__. || |`\\ \\| \\__., | |    \\ `.___.'\\ | | | | // | |, | |  | | | |  \n|_______/[___]    '.__.'[__|  \\_]'.__.'[___]    `.____ .'[___]|__]\\'-;__/[___][___||__]  (academic)")
 }
 func printDisclaimers() {
 	fmt.Println("\nBrokerChain仅供学术交流使用，用户不得使用BrokerChain从事任何非法活动。\n用户使用BrokerChain所产生的任何直接或间接后果，均与BrokerChain创始团队无关。\nBrokerChain创始团队保留随时修改、更新或终止BrokerChain的权利，且无需事先通知用户。\n用户在使用BrokerChain时，应自行承担风险，并同意放弃对创始团队的任何索赔权利。\n本免责声明受中华人民共和国法律管辖，并按照其解释。\n")
 }
-func getversion(){
+func getversion() {
 	version, err1 := Get("getversion", []byte{})
 	if err1 != nil {
 		return
@@ -167,7 +166,7 @@ func getversion(){
 	}
 }
 
-func handlequeryacc(reader *bufio.Reader ){
+func handlequeryacc(reader *bufio.Reader) {
 	fmt.Println("Please enter the address to query:")
 	address, _ := reader.ReadString('\n')
 	address = strings.TrimSpace(address)
@@ -271,8 +270,12 @@ func handletransfer(reader *bufio.Reader) {
 	val, _ := reader.ReadString('\n')
 	val = strings.TrimSpace(val)
 
+	fmt.Println("Please enter the fee:")
+	fee, _ := reader.ReadString('\n')
+	fee = strings.TrimSpace(fee)
+
 	randstr := uuid.New().String()
-	thedata1 := randstr + to + val
+	thedata1 := randstr + to + val + fee
 	sign21, sign22, _ := SignECDSA(global.PrivateKeyBigInt, thedata1)
 
 	qreq1 := TxReq{
@@ -282,6 +285,7 @@ func handletransfer(reader *bufio.Reader) {
 		Sign2:     sign22,
 		To:        to,
 		Value:     val,
+		Fee:       fee,
 	}
 	m1, _ := json.Marshal(qreq1)
 	data2, err := Post("sendtx", m1)
@@ -297,6 +301,54 @@ func handletransfer(reader *bufio.Reader) {
 
 	return
 }
+
+func handleclaim(reader *bufio.Reader) {
+	fmt.Println("Please enter the filename for the private key:")
+	filename, _ := reader.ReadString('\n')
+	filename = strings.TrimSpace(filename)
+
+	file, err := os.Open(filename)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	// 将字节切片转换为字符串并打印
+	content := string(data)
+	global.PrivateKey = content
+	global.PrivateKeyBigInt.SetString(global.PrivateKey, 10)
+	global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	file.Close()
+
+	randstr := uuid.New().String()
+	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
+	claimreq := ClaimReq{
+		PublicKey: global.PublicKey,
+		RandomStr: randstr,
+		Sign1:     sign1,
+		Sign2:     sign2,
+	}
+	marshal, _ := json.Marshal(claimreq)
+	data1, err := Post("claim", marshal)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("Result: " + string(data1))
+}
+
+type ClaimReq struct {
+	PublicKey string `json:"PublicKey" binding:"required"`
+	RandomStr string `json:"RandomStr" binding:"required"`
+	Sign1     string `json:"Sign1" binding:"required"`
+	Sign2     string `json:"Sign2" binding:"required"`
+}
+
 func handleopenwallet(reader *bufio.Reader) {
 	fmt.Println("Please enter the filename for the private key:")
 	filename, _ := reader.ReadString('\n')
@@ -324,7 +376,9 @@ func handleopenwallet(reader *bufio.Reader) {
 	file.Close()
 
 	gin.DisableConsoleColor()
-	gin.DefaultWriter = io.Discard
+	f, _ := os.Create("gin.log")
+	gin.DefaultWriter = io.MultiWriter(f)
+	//gin.DefaultWriter = io.Discard
 	//gin.DefaultErrorWriter = io.Discard
 	r := gin.Default()
 	r.Use(CorsConfig())
@@ -632,7 +686,7 @@ func handleopenwallet(reader *bufio.Reader) {
 	}
 	return
 }
-func handlegeneratekey(reader *bufio.Reader) bool{
+func handlegeneratekey(reader *bufio.Reader) bool {
 	fmt.Println("Please enter the filename to save the generated private key:")
 	filename, _ := reader.ReadString('\n')
 	filename = strings.TrimSpace(filename)
@@ -673,7 +727,7 @@ func handlegeneratekey(reader *bufio.Reader) bool{
 	file.Close()
 	return true
 }
-func handleexistprivatekey(reader *bufio.Reader) bool{
+func handleexistprivatekey(reader *bufio.Reader) bool {
 	fmt.Println("Please enter the filename for the private key:")
 	filename, _ := reader.ReadString('\n')
 	filename = strings.TrimSpace(filename)
@@ -701,7 +755,8 @@ func handleexistprivatekey(reader *bufio.Reader) bool{
 	file.Close()
 	return true
 }
-func tryjoin() bool{
+
+func tryjoin() bool {
 	count := 0
 	for {
 		count += 1
@@ -748,69 +803,92 @@ func main() {
 
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Println("Welcome. Please enter an option:")
-	fmt.Println("1: Join BrokerChain as a consensus node && Open the wallet.")
-	fmt.Println("2: Open the wallet.")
-	fmt.Println("3: Query an account and its balance if given an address.")
-	fmt.Println("4: Transfer tokens to another account.")
-	input0, _ := reader.ReadString('\n')
-	input0 = strings.TrimSpace(input0)
-	if input0 == "3" {
-		handlequeryacc(reader)
-		return
-	}
-	if input0 == "4" {
-		handletransfer(reader)
-		return
-	}
-	if input0 == "2" {
-		handleopenwallet(reader)
-		return
-	}
-
-	if input0 != "1" {
-		fmt.Println("Invalid input.")
-		time.Sleep(3 * time.Second)
-		return
-	}
-
-	fmt.Println("Please enter an option:")
-	fmt.Println("1: Generate a pair of (public/private) keys for a new account")
-	fmt.Println("2: Use the private key of an existing account")
-
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSpace(input)
-
-	var _ error
-	switch input {
-	case "1":
-		if !handlegeneratekey(reader){
-			return
+	for {
+		fmt.Println("Welcome. Please enter an option:")
+		fmt.Println("1: Join BrokerChain as a consensus node && Open the wallet.")
+		fmt.Println("2: Open the wallet.")
+		fmt.Println("3: Query an account and its balance if given an address.")
+		fmt.Println("4: Transfer tokens to another account.")
+		fmt.Println("5: Claim BKC academic tokens through faucets.")
+		input0, _ := reader.ReadString('\n')
+		input0 = strings.TrimSpace(input0)
+		if input0 == "3" {
+			handlequeryacc(reader)
+			fmt.Println()
+			continue
 		}
-	case "2":
-		if !handleexistprivatekey(reader) {
-			return
+		if input0 == "4" {
+			handletransfer(reader)
+			fmt.Println()
+			continue
 		}
-	default:
-		fmt.Println("Invalid input.")
-		time.Sleep(3 * time.Second)
-		return
+		if input0 == "2" {
+			handleopenwallet(reader)
+			fmt.Println()
+			continue
+		}
+
+		if input0 == "5" {
+			handleclaim(reader)
+			fmt.Println()
+			continue
+		}
+
+		if input0 != "1" {
+			fmt.Println("Invalid input.")
+			fmt.Println()
+			continue
+		}
+		break
+	}
+
+	for {
+		fmt.Println("Please enter an option:")
+		fmt.Println("1: Generate a pair of (public/private) keys for a new account")
+		fmt.Println("2: Use the private key of an existing account")
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(input)
+		var _ error
+		flag := false
+		switch input {
+		case "1":
+			if !handlegeneratekey(reader) {
+				break
+			}else {
+				flag = true
+				break
+			}
+		case "2":
+			if !handleexistprivatekey(reader) {
+				break
+			}else {
+				flag = true
+				break
+			}
+		default:
+			fmt.Println("Invalid input.")
+			fmt.Println()
+			continue
+		}
+		if flag {
+			break
+		}
 	}
 	Runhttp()
-	for  {
-		if !tryjoin() {
+	for {
+		if !JoinPoS() {
+			fmt.Println("Join failed. ")
 			return
 		}
 		WaitConstructShard()
 		build_()
 		connect()
 		build.BuildNewPbftNode(uint64(nodeID), uint64(nodeNum), uint64(shardID), uint64(shardNum))
-		time.Sleep(1*time.Second)
+		time.Sleep(1 * time.Second)
 	}
 
-
 }
-func build_(){
+func build_() {
 	maxShardId, _ := strconv.Atoi(config.NewNodeinfos[len(config.NewNodeinfos)-1].ShardID)
 	shardNum = maxShardId + 1
 	nodeNum = len(config.NewNodeinfos)
@@ -859,7 +937,7 @@ func build_(){
 	params.IPmap_nodeTable[params.SupervisorShard][0] = params.SupervisorAddr
 }
 
-func connect(){
+func connect() {
 	for i := 0; i < 10; i++ {
 		randstr := uuid.New().String()
 		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
@@ -906,6 +984,57 @@ func getFreePort() (int, error) {
 		}
 	}
 }
+
+type JoinReq2 struct {
+	PublicKey string `json:"PublicKey" binding:"required"`
+	RandomStr string `json:"RandomStr" binding:"required"`
+	Sign1     string `json:"Sign1" binding:"required"`
+	Sign2     string `json:"Sign2" binding:"required"`
+}
+
+func JoinPoS() bool {
+	randstr := uuid.New().String()
+	thedata := randstr
+	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	joinreq := JoinReq2{
+		PublicKey: global.PublicKey,
+		RandomStr: randstr,
+		Sign1:     sign1,
+		Sign2:     sign2,
+	}
+	m, _ := json.Marshal(joinreq)
+	data, err := Post("join2", m)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	if strings.Contains(string(data), "success") {
+		return true
+	} else {
+		fmt.Println(string(data))
+		if strings.Contains(string(data), "do not join system using the same private key") {
+			fmt.Println()
+			fmt.Println("=============********************************************************************************=============")
+			fmt.Println("【Join failed】. Please do not join system using the same private key. Program will exit after 10 seconds.")
+			fmt.Println("=============********************************************************************************=============")
+			fmt.Println()
+			time.Sleep(10 * time.Second)
+			os.Exit(1)
+		}
+		if strings.Contains(string(data), "Your balance is less than") {
+			fmt.Println()
+			fmt.Println("=============********************************************************************************=============")
+			fmt.Println("【PoS failed】. Your account balance is not enough to join BrokerChain. Program will exit after 10 seconds.")
+			fmt.Println("=============********************************************************************************=============")
+			fmt.Println()
+			time.Sleep(10 * time.Second)
+			os.Exit(1)
+		}
+	}
+	return false
+
+}
+
 func Join(answer string) bool {
 	randstr := uuid.New().String()
 	p, err := getFreePort()
@@ -933,11 +1062,11 @@ func Join(answer string) bool {
 	}
 	if strings.Contains(string(data), "success") {
 		return true
-	}else {
+	} else {
 		fmt.Println(string(data))
-		if strings.Contains(string(data),"do not join system using the same private key") {
+		if strings.Contains(string(data), "do not join system using the same private key") {
 			fmt.Println("Please do not join system using the same private key! Program will exit after 10 seconds.")
-			time.Sleep(10*time.Second)
+			time.Sleep(10 * time.Second)
 			os.Exit(1)
 		}
 	}
@@ -1050,7 +1179,7 @@ func check(arr [32]byte, difficulty int) bool {
 var C *websocket.Conn
 
 func WaitConstructShard() {
-	u := url.URL{Scheme: "ws", Host: global.ServerHost + ":" + global.ServerPort, Path: "/ws"}
+	u := url.URL{Scheme: "ws", Host: global.ServerHost + ":" + global.ServerPort, Path: "/ws2"}
 	//log.Printf("Connecting to %s", u.String())
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
@@ -1118,10 +1247,6 @@ func WaitConstructShard() {
 
 }
 
-
-
-
-
 func CorsConfig() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*") // 可将将 * 替换为指定的域名
@@ -1137,8 +1262,6 @@ func CorsConfig() gin.HandlerFunc {
 		}
 	}
 }
-
-
 
 func eth_getBlockByNumber(request RpcRequest) interface{} {
 	s := request.Params[0].(string)
@@ -1290,8 +1413,6 @@ func eth_getTransactionByHash(request RpcRequest) interface{} {
 	json.Unmarshal(data1, &re)
 	return re.Result
 }
-
-
 
 func eth_blockNumber(request RpcRequest) interface{} {
 	rr := uuid.New().String()
@@ -1499,7 +1620,6 @@ type RpcResponse struct {
 	Error   interface{} `json:"error,omitempty"`
 }
 
-
 type SendContractReq struct {
 	PublicKey string `json:"PublicKey" binding:"required"`
 	To        string `json:"To" binding:"required"`
@@ -1604,9 +1724,12 @@ type JoinReq struct {
 	Port      string `json:"Port" binding:"required"`
 }
 
-func Runhttp(){
+func Runhttp() {
 	//gin.DisableConsoleColor()
 	//gin.DefaultWriter = io.Discard
+	gin.DisableConsoleColor()
+	f, _ := os.Create("gin.log")
+	gin.DefaultWriter = io.MultiWriter(f)
 	r := gin.Default()
 	r.Use(CorsConfig())
 	r.LoadHTMLGlob("html/*")
