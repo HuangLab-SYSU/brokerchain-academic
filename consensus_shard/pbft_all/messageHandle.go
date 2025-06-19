@@ -41,6 +41,9 @@ func (p *PbftConsensusNode) Propose() {
 				return
 			}
 			time.Sleep(time.Duration(int64(p.pbftChainConfig.BlockInterval)) * time.Millisecond)
+			if p.stopSignal.Load() {
+				return
+			}
 			// send a signal to another GO-Routine. It will block until a GO-Routine try to fetch data from this channel.
 			for p.pbftStage.Load() != 1 {
 				time.Sleep(time.Millisecond * 100)
@@ -56,8 +59,14 @@ func (p *PbftConsensusNode) Propose() {
 				return
 			}
 			time.Sleep(time.Second)
+			if p.stopSignal.Load() {
+				return
+			}
 			if time.Now().UnixMilli()-p.lastCommitTime.Load() > int64(params.PbftViewChangeTimeOut) {
 				p.lastCommitTime.Store(time.Now().UnixMilli())
+				if p.stopSignal.Load() {
+					return
+				}
 				go p.viewChangePropose()
 			}
 		}
@@ -68,7 +77,9 @@ func (p *PbftConsensusNode) Propose() {
 		for {
 			time.Sleep(time.Second)
 			if time.Now().UnixMilli()-p.lastCommitTime2.Load() > int64(45000) {
-				p.pStop <- 1
+				go func() {
+					p.pStop <- 1
+				}()
 				p.stopSignal.Store(true)
 				if global.Conn != nil {
 					global.Conn.Close()
@@ -128,6 +139,9 @@ func (p *PbftConsensusNode) Propose() {
 					log.Panic()
 				}
 				msg_send := message.MergeMessage(message.CPrePrepare, ppbyte)
+				if p.stopSignal.Load() {
+					return
+				}
 				networks.Broadcast(p.RunningNode.IPaddr, p.getNeighborNodes(), msg_send)
 				networks.TcpDial(msg_send, p.RunningNode.IPaddr)
 				p.pbftStage.Store(2)
@@ -165,6 +179,9 @@ func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
 	if ppmsg.SeqID < p.sequenceID || p.view.Load() != curView {
 		return
 	}
+	if p.stopSignal.Load() {
+		return
+	}
 
 	flag := false
 	if digest := getDigest(ppmsg.RequestMsg); string(digest) != string(ppmsg.Digest) {
@@ -192,6 +209,9 @@ func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
 		}
 		// broadcast
 		msg_send := message.MergeMessage(message.CPrepare, prepareByte)
+		if p.stopSignal.Load() {
+			return
+		}
 		networks.Broadcast(p.RunningNode.IPaddr, p.getNeighborNodes(), msg_send)
 		networks.TcpDial(msg_send, p.RunningNode.IPaddr)
 		p.pl.Plog.Printf("S%dN%d : has broadcast the prepare message \n", p.ShardID, p.NodeID)
@@ -347,6 +367,9 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 				log.Panic()
 			}
 			msg_send := message.MergeMessage(message.CCommit, commitByte)
+			if p.stopSignal.Load() {
+				return
+			}
 			networks.Broadcast(p.RunningNode.IPaddr, p.getNeighborNodes(), msg_send)
 			networks.TcpDial(msg_send, p.RunningNode.IPaddr)
 			p.isCommitBordcast[string(pmsg.Digest)] = true
@@ -526,7 +549,7 @@ func Post(url string, data []byte) ([]byte, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error sending request:", err)
+		//fmt.Println("Error sending request:", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -647,6 +670,9 @@ func (p *PbftConsensusNode) handleSendOldSeq(content []byte) {
 				}
 				// broadcast
 				msg_send := message.MergeMessage(message.CPrepare, prepareByte)
+				if p.stopSignal.Load() {
+					return
+				}
 				networks.Broadcast(p.RunningNode.IPaddr, p.getNeighborNodes(), msg_send)
 				p.pl.Plog.Printf("S%dN%d : has broadcast the prepare message \n", p.ShardID, p.NodeID)
 			}

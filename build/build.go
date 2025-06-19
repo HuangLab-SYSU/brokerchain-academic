@@ -65,6 +65,7 @@ func BuildNewPbftNode(nid, nnm, sid, snm uint64) {
 	worker := pbft_all.NewPbftNode(sid, nid, initConfig(nid, nnm, sid, snm), params.CommitteeMethod[methodID])
 	go worker.TcpListen()
 	go worker.HandleClientRequest2()
+	go worker.Beat()
 
 
 	//for j := 0; j < int(nnm); j++ {

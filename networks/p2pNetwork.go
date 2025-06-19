@@ -54,12 +54,14 @@ func InitNetworkTools() {
 	// Limit the upload rate
 	rateLimiterUpload = rate.NewLimiter(rate.Limit(params.Bandwidth), params.Bandwidth)
 }
+
 type ConReq struct {
 	PublicKey string `json:"PublicKey" binding:"required"`
 	RandomStr string `json:"RandomStr" binding:"required"`
 	Sign1     string `json:"Sign1" binding:"required"`
 	Sign2     string `json:"Sign2" binding:"required"`
 }
+
 func SignECDSA(private *big.Int, data string) (string, string, error) {
 	privateKey := &ecdsa.PrivateKey{}
 	privateKey.Curve = elliptic.P256()
@@ -73,12 +75,14 @@ func SignECDSA(private *big.Int, data string) (string, string, error) {
 	s1 := hex.EncodeToString(s.Bytes())
 	return r1, s1, nil
 }
+
 var Lock sync.Mutex
 var lastbeattime = time.Now()
+
 func TcpDial(context []byte, addr string) {
 	Lock.Lock()
 	defer Lock.Unlock()
-	if addr == global.MyIp{
+	if addr == global.MyIp {
 		conn, err := net.Dial("tcp", "127.0.0.1:"+strconv.Itoa(global.LocalPort))
 		if err != nil {
 			log.Println("Connect error", err)
@@ -88,8 +92,14 @@ func TcpDial(context []byte, addr string) {
 		conn.Close()
 		return
 	}
-	if err := (global.Conn).(*net.TCPConn).SetKeepAlive(true); err != nil {
-		for i := 0; i < 20; i++ {
+
+	bytes1 := message.MergeMessage2(addr, context)
+	for {
+		_, err := global.Conn.Write(append(bytes1, '\n'))
+		if err == nil {
+			break
+		}
+		for {
 			randstr := uuid.New().String()
 			sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
 			conreq := ConReq{
@@ -103,30 +113,52 @@ func TcpDial(context []byte, addr string) {
 			conn, err1 := dialer.Dial("tcp", global.ServerHost+":"+global.ServerForwardPort)
 
 			if err1 != nil {
-				log.Println("Connect error", err1)
-			}else {
+				//log.Println("Connect error", err1)
+			} else {
 				conn.(*net.TCPConn).SetKeepAlive(true)
 				global.Conn = conn
 
-				bytes2:=message.MergeMessage2("auth",marshal)
+				bytes2 := message.MergeMessage2("auth", marshal)
 				global.Conn.Write(append(bytes2, '\n'))
 				break
 			}
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 
+	//if err := (global.Conn).(*net.TCPConn).SetKeepAlive(true); err != nil {
+	//	for  {
+	//		randstr := uuid.New().String()
+	//		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
+	//		conreq := ConReq{
+	//			PublicKey: global.PublicKey,
+	//			RandomStr: randstr,
+	//			Sign1:     sign1,
+	//			Sign2:     sign2,
+	//		}
+	//		marshal, _ := json.Marshal(conreq)
+	//		dialer := &net.Dialer{Timeout:  3 * time.Second}
+	//		conn, err1 := dialer.Dial("tcp", global.ServerHost+":"+global.ServerForwardPort)
+	//
+	//		if err1 != nil {
+	//			log.Println("Connect error", err1)
+	//		}else {
+	//			conn.(*net.TCPConn).SetKeepAlive(true)
+	//			global.Conn = conn
+	//
+	//			bytes2:=message.MergeMessage2("auth",marshal)
+	//			global.Conn.Write(append(bytes2, '\n'))
+	//			break
+	//		}
+	//		time.Sleep(100*time.Millisecond)
+	//	}
+	//}
 
-
-	bytes1:=message.MergeMessage2(addr,context)
-	global.Conn.Write(append(bytes1, '\n'))
-
-
-	if time.Since(lastbeattime).Seconds() >= 15{
-		bytes2:=message.MergeMessage2("beat",[]byte{1})
-		global.Conn.Write(append(bytes2, '\n'))
-		lastbeattime = time.Now()
-	}
-
+	//if time.Since(lastbeattime).Seconds() >= 15{
+	//	bytes2:=message.MergeMessage2("beat",[]byte{1})
+	//	global.Conn.Write(append(bytes2, '\n'))
+	//	lastbeattime = time.Now()
+	//}
 
 	return
 	go func() {

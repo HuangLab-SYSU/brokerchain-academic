@@ -31,6 +31,9 @@ func (p *PbftConsensusNode) viewChangePropose() {
 		log.Panic()
 	}
 	msg_send := message.MergeMessage(message.ViewChangePropose, vcbyte)
+	if p.stopSignal.Load() {
+		return
+	}
 	networks.Broadcast(p.RunningNode.IPaddr, p.getNeighborNodes(), msg_send)
 	networks.TcpDial(msg_send, p.RunningNode.IPaddr)
 
@@ -65,6 +68,9 @@ func (p *PbftConsensusNode) handleViewChangeMsg(content []byte) {
 			log.Panic()
 		}
 		msg_send := message.MergeMessage(message.NewChange, nvbyte)
+		if p.stopSignal.Load() {
+			return
+		}
 		networks.Broadcast(p.RunningNode.IPaddr, p.getNeighborNodes(), msg_send)
 		networks.TcpDial(msg_send, p.RunningNode.IPaddr)
 	}

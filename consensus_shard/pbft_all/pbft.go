@@ -87,6 +87,7 @@ type PbftConsensusNode struct {
 
 	// to handle the message outside of pbft
 	ohm OpInterShards
+	lastbeattime time.Time
 }
 
 // generate a pbft consensus for a node
@@ -147,6 +148,7 @@ func NewPbftNode(shardID, nodeID uint64, pcc *params.ChainConfig, messageHandleT
 	p.seqIDMap = make(map[uint64]uint64)
 
 	p.pl = pbft_log.NewPbftLog(shardID, nodeID)
+	p.lastbeattime = time.Now()
 
 	// choose how to handle the messages in pbft or beyond pbft
 	switch string(messageHandleType) {
@@ -304,7 +306,20 @@ func (p *PbftConsensusNode) HandleClientRequest(con net.Conn) {
 		}
 	}
 }
+func (p *PbftConsensusNode) Beat(){
 
+	for  {
+		if p.stopSignal.Load() {
+			return
+		}
+		if time.Since(p.lastbeattime).Seconds() >= 5{
+			networks.TcpDial([]byte(""),"beat")
+			p.lastbeattime = time.Now()
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+}
 func (p *PbftConsensusNode) HandleClientRequest2() {
 	for {
 		if p.stopSignal.Load() {
@@ -330,7 +345,7 @@ func (p *PbftConsensusNode) HandleClientRequest2() {
 				log.Println("client closed the connection by terminating the process...")
 				flag = false
 			default:
-				log.Printf("error: %v\n", err)
+				//log.Printf("error: %v\n", err)
 				flag = false
 			}
 			if !flag {

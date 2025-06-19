@@ -47,14 +47,14 @@ var (
 func Get(url string, data []byte) ([]byte, error) {
 	req, err := http.NewRequest("GET", "http://"+global.ServerHost+":"+global.ServerPort+"/"+url, bytes.NewBuffer(data))
 	if err != nil {
-		fmt.Println("Error creating request:", err)
+		//fmt.Println("Error creating request:", err)
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error sending request:", err)
+		//fmt.Println("Error sending request:", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -69,14 +69,14 @@ func Get(url string, data []byte) ([]byte, error) {
 func Post(url string, data []byte) ([]byte, error) {
 	req, err := http.NewRequest("POST", "http://"+global.ServerHost+":"+global.ServerPort+"/"+url, bytes.NewBuffer(data))
 	if err != nil {
-		fmt.Println("Error creating request:", err)
+		//fmt.Println("Error creating request:", err)
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error sending request:", err)
+		//fmt.Println("Error sending request:", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -544,7 +544,7 @@ func handleopenwallet(reader *bufio.Reader) {
 		m, _ := json.Marshal(qreq)
 		data1, err := Post("query-g", m)
 		if err != nil {
-			fmt.Println(err)
+			//fmt.Println(err)
 			return
 		}
 
@@ -561,7 +561,6 @@ func handleopenwallet(reader *bufio.Reader) {
 		bf1 := new(big.Float)
 		bf1.Quo(bf, Unit)
 
-		fmt.Println()
 		//fmt.Println("账户地址是:", r.AccountAddr, ",余额是:"+bf1.Text('f', -1))
 		c.JSON(http.StatusOK, gin.H{"balance": bf1.Text('f', -1), "addr": r.AccountAddr})
 	})
@@ -674,6 +673,7 @@ func handleopenwallet(reader *bufio.Reader) {
 	file2.Sync()
 	file2.Close()
 
+	time.Sleep(100*time.Millisecond)
 	if runtime.GOOS == "windows" {
 		url := "http://127.0.0.1:" + strconv.Itoa(freePort)
 		cmd := "cmd"
@@ -681,10 +681,10 @@ func handleopenwallet(reader *bufio.Reader) {
 		args = append(args, url)
 		exec.Command(cmd, args...).Start()
 	}
-	for {
-		time.Sleep(1 * time.Second)
-	}
-	return
+	//for {
+	//	time.Sleep(1 * time.Second)
+	//}
+
 }
 func handlegeneratekey(reader *bufio.Reader) bool {
 	fmt.Println("Please enter the filename to save the generated private key:")
@@ -790,9 +790,17 @@ func tryjoin() bool {
 }
 
 func main() {
+
+	//publickey := GetPublicKeyFromPrivateKey("48334408742440250708470803988495445476048475486486413194947831689378251593846")
+	//fmt.Println(publickey)
+	//global.PublicKey = publickey
+	//fmt.Println(GetAddress())
+	//
+	//return
+
 	printbanner()
 	printDisclaimers()
-	getversion()
+	//getversion()
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
@@ -825,6 +833,9 @@ func main() {
 		if input0 == "2" {
 			handleopenwallet(reader)
 			fmt.Println()
+			select {
+
+			}
 			continue
 		}
 
@@ -876,20 +887,34 @@ func main() {
 	}
 	Runhttp()
 	for {
-		if !JoinPoS() {
-			fmt.Println("Join failed. ")
-			return
+		fmt.Println("Start trying to join BrokerChain network...")
+		for  {
+			if !JoinPoS() {
+				time.Sleep(1 * time.Second)
+			} else {
+				break
+			}
 		}
+		fmt.Println("Join BrokerChain network successfully.")
+
 		WaitConstructShard()
-		build_()
+		if !build_(){
+			continue
+		}
 		connect()
 		build.BuildNewPbftNode(uint64(nodeID), uint64(nodeNum), uint64(shardID), uint64(shardNum))
 		time.Sleep(1 * time.Second)
 	}
 
 }
-func build_() {
-	maxShardId, _ := strconv.Atoi(config.NewNodeinfos[len(config.NewNodeinfos)-1].ShardID)
+func build_() bool{
+	if len(config.NewNodeinfos) == 0 {
+		return false
+	}
+	maxShardId, err := strconv.Atoi(config.NewNodeinfos[len(config.NewNodeinfos)-1].ShardID)
+	if err != nil {
+		return false
+	}
 	shardNum = maxShardId + 1
 	nodeNum = len(config.NewNodeinfos)
 	shardID = maxShardId
@@ -911,7 +936,10 @@ func build_() {
 	nodeid := -1
 	for _, node := range nodes {
 		nodeid++
-		shardidnow, _ := strconv.Atoi(node.ShardID)
+		shardidnow, err1 := strconv.Atoi(node.ShardID)
+		if err1 != nil {
+			return false
+		}
 		if shardidnow != shardid {
 			shardid = shardidnow
 			nodeid = 0
@@ -935,10 +963,11 @@ func build_() {
 	params.SupervisorAddr = global.ServerHost + ":" + strconv.Itoa(38800)
 	params.IPmap_nodeTable[params.SupervisorShard] = make(map[uint64]string)
 	params.IPmap_nodeTable[params.SupervisorShard][0] = params.SupervisorAddr
+	return true
 }
 
 func connect() {
-	for i := 0; i < 10; i++ {
+	for {
 		randstr := uuid.New().String()
 		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
 		getproblemreq := ConReq{
@@ -958,6 +987,7 @@ func connect() {
 			networks.TcpDial(marshal, "auth")
 			break
 		}
+		time.Sleep( 500*time.Millisecond )
 	}
 }
 
@@ -1005,7 +1035,7 @@ func JoinPoS() bool {
 	m, _ := json.Marshal(joinreq)
 	data, err := Post("join2", m)
 	if err != nil {
-		fmt.Println(err)
+		//fmt.Println(err)
 		return false
 	}
 	if strings.Contains(string(data), "success") {
@@ -1183,7 +1213,8 @@ func WaitConstructShard() {
 	//log.Printf("Connecting to %s", u.String())
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatal("Dial error:", err)
+		//log.Fatal("Dial error:", err)
+		return
 	}
 
 	C = conn
@@ -1238,7 +1269,7 @@ func WaitConstructShard() {
 		case <-ticker.C:
 			err = conn.WriteMessage(websocket.TextMessage, []byte("Hello"))
 			if err != nil {
-				log.Println("Write error:", err)
+				//log.Println("Write error:", err)
 				return
 			}
 
@@ -1725,7 +1756,6 @@ type JoinReq struct {
 }
 
 func Runhttp() {
-	//gin.DisableConsoleColor()
 	//gin.DefaultWriter = io.Discard
 	gin.DisableConsoleColor()
 	f, _ := os.Create("gin.log")
@@ -1882,7 +1912,7 @@ func Runhttp() {
 		m, _ := json.Marshal(qreq)
 		data1, err := Post("query-g", m)
 		if err != nil {
-			fmt.Println(err)
+			//fmt.Println(err)
 			return
 		}
 
@@ -1930,7 +1960,7 @@ func Runhttp() {
 		m, _ := json.Marshal(qreq)
 		data1, err := Post("query-g", m)
 		if err != nil {
-			fmt.Println(err)
+			//fmt.Println(err)
 			return
 		}
 
