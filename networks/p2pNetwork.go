@@ -85,7 +85,7 @@ func TcpDial(context []byte, addr string) {
 	if addr == global.MyIp {
 		conn, err := net.Dial("tcp", "127.0.0.1:"+strconv.Itoa(global.LocalPort))
 		if err != nil {
-			log.Println("Connect error", err)
+			//log.Println("Connect error", err)
 			return
 		}
 		conn.Write(append(context, '\n'))

@@ -92,6 +92,16 @@ func (p *PbftConsensusNode) Propose() {
 					}()
 					p.tcpln.Close()
 				}()
+				go func() {
+					defer func() {
+						if err := recover(); err != nil {
+							fmt.Println(err)
+						}
+					}()
+					p.pbftLock.Lock()
+					defer p.pbftLock.Unlock()
+					p.conditionalVarpbftLock.Broadcast()
+				}()
 
 				go func() {
 					defer func() {
@@ -276,7 +286,9 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 		p.conditionalVarpbftLock.Wait()
 	}
 	defer p.conditionalVarpbftLock.Broadcast()
-
+	if p.stopSignal.Load() {
+		return
+	}
 	// if this message is out of date, return.
 	if pmsg.SeqID < p.sequenceID || p.view.Load() != curView {
 		return
@@ -398,7 +410,9 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 		p.conditionalVarpbftLock.Wait()
 	}
 	defer p.conditionalVarpbftLock.Broadcast()
-
+	if p.stopSignal.Load() {
+		return
+	}
 	if cmsg.SeqID < p.sequenceID || p.view.Load() != curView {
 		return
 	}
@@ -410,6 +424,9 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 
 	cnt := len(p.cntCommitConfirm[string(cmsg.Digest)])
 
+	if p.stopSignal.Load() {
+		return
+	}
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -440,6 +457,9 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 			msg_send := message.MergeMessage(message.CRequestOldrequest, bromyte)
 			networks.TcpDial(msg_send, orequest.ServerNode.IPaddr)
 		} else {
+			if p.stopSignal.Load() {
+				return
+			}
 			// implement interface
 			p.ihm.HandleinCommit(cmsg)
 
@@ -611,7 +631,9 @@ func (p *PbftConsensusNode) handleRequestOldSeq(content []byte) {
 		}
 	}
 	p.pl.Plog.Printf("S%dN%d : has generated the message to be sent\n", p.ShardID, p.NodeID)
-
+	if p.stopSignal.Load() {
+		return
+	}
 	p.ihm.HandleReqestforOldSeq(rom)
 
 	// send the block back
@@ -626,6 +648,9 @@ func (p *PbftConsensusNode) handleRequestOldSeq(content []byte) {
 		log.Panic()
 	}
 	msg_send := message.MergeMessage(message.CSendOldrequest, sbByte)
+	if p.stopSignal.Load() {
+		return
+	}
 	networks.TcpDial(msg_send, rom.SenderNode.IPaddr)
 	p.pl.Plog.Printf("S%dN%d : send blocks\n", p.ShardID, p.NodeID)
 }

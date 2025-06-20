@@ -72,14 +72,15 @@ func (s *Storage) UpdateNewestBlock(newestbhash []byte) {
 		// the bucket has the only key "OnlyNewestBlock"
 		err := nbhBucket.Put([]byte("OnlyNewestBlock"), newestbhash)
 		if err != nil {
-			log.Panic()
+			fmt.Println(err)
 		}
 		return nil
 	})
 	if err != nil {
-		log.Panic()
+		fmt.Println(err)
+	}else {
+		fmt.Println("The newest block is updated")
 	}
-	fmt.Println("The newest block is updated")
 }
 
 // add a blockheader into the database
@@ -88,12 +89,12 @@ func (s *Storage) AddBlockHeader(blockhash []byte, bh *core.BlockHeader) {
 		bhbucket := tx.Bucket([]byte(s.blockHeaderBucket))
 		err := bhbucket.Put(blockhash, bh.Encode())
 		if err != nil {
-			log.Panic()
+			fmt.Println(err)
 		}
 		return nil
 	})
 	if err != nil {
-		log.Panic()
+		fmt.Println(err)
 	}
 }
 
@@ -103,16 +104,17 @@ func (s *Storage) AddBlock(b *core.Block) {
 		bbucket := tx.Bucket([]byte(s.blockBucket))
 		err := bbucket.Put(b.Hash, b.Encode())
 		if err != nil {
-			log.Panic()
+			fmt.Println(err)
 		}
 		return nil
 	})
 	if err != nil {
-		log.Panic()
+		fmt.Println(err)
+	}else{
+		s.AddBlockHeader(b.Hash, b.Header)
+		s.UpdateNewestBlock(b.Hash)
+		fmt.Println("Block is added")
 	}
-	s.AddBlockHeader(b.Hash, b.Header)
-	s.UpdateNewestBlock(b.Hash)
-	fmt.Println("Block is added")
 }
 
 // read a blockheader from the database
