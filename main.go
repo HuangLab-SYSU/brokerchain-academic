@@ -127,6 +127,9 @@ func SignECDSA(private *big.Int, data string) (string, string, error) {
 	privateKey := &ecdsa.PrivateKey{}
 	privateKey.Curve = elliptic.P256()
 	privateKey.D = private
+	x, y := elliptic.P256().ScalarBaseMult(private.Bytes())
+	privateKey.X = x
+	privateKey.Y = y
 	hash := sha256.Sum256([]byte(data))
 	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
 	if err != nil {
