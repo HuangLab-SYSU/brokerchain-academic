@@ -19,4 +19,4 @@ var MyIp = ""
 
 var Conn net.Conn
 
-var Version = "1.0.2"
+var Version = "1.0.3"
