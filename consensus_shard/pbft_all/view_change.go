@@ -5,6 +5,7 @@ import (
 	"blockEmulator/networks"
 	"encoding/json"
 	"log"
+	"strconv"
 	"time"
 )
 
@@ -17,7 +18,9 @@ func (p *PbftConsensusNode) viewChangePropose() {
 	// load pbftStage as 5, i.e., making a view change
 	p.pbftStage.Store(5)
 
-	p.pl.Plog.Println("Main node is time out, now trying to view change. ")
+	add := p.viewchangecount.Add(1)
+	itoa := strconv.Itoa(int(add))
+	p.pl.Plog.Println("Main node is time out. Now is the ["+ itoa+"] time trying to view change. Note that this may happens 10 times in total, please be patient and wait.")
 
 	vcmsg := message.ViewChangeMsg{
 		CurView:  int(p.view.Load()),
@@ -96,6 +99,7 @@ func (p *PbftConsensusNode) handleNewViewMsg(content []byte) {
 		p.sequenceID = uint64(nvmsg.NewSeqID)
 		p.pbftStage.Store(1)
 		p.lastCommitTime.Store(time.Now().UnixMilli())
+		p.viewchangecount.Store(0)
 		p.pl.Plog.Println("New view is updated.")
 	}
 }

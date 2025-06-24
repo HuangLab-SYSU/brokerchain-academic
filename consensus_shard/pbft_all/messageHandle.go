@@ -76,7 +76,7 @@ func (p *PbftConsensusNode) Propose() {
 		// check whether to view change
 		for {
 			time.Sleep(time.Second)
-			if time.Now().UnixMilli()-p.lastCommitTime2.Load() > int64(45000) {
+			if time.Now().UnixMilli()-p.lastCommitTime2.Load() > int64(params.PbftStopShardTimeout) {
 				go func() {
 					p.pStop <- 1
 				}()
@@ -199,6 +199,7 @@ func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
 	} else if p.sequenceID < ppmsg.SeqID {
 		p.requestPool[string(getDigest(ppmsg.RequestMsg))] = ppmsg.RequestMsg
 		p.height2Digest[ppmsg.SeqID] = string(getDigest(ppmsg.RequestMsg))
+		fmt.Println("ppmsg.SeqID:", ppmsg.SeqID)
 		p.pl.Plog.Printf("S%dN%d : the Sequence id is not consistent, so refuse to prepare. \n", p.ShardID, p.NodeID)
 	} else {
 		// do your operation in this interface
@@ -271,13 +272,13 @@ func check(arr [32]byte, arr2 [32]byte, difficulty int) bool {
 // If you want to do more operations in the prepare stage, you can implement the interface "ExtraOpInConsensus",
 // and call the function: **ExtraOpInConsensus.HandleinPrepare**
 func (p *PbftConsensusNode) handlePrepare(content []byte) {
-	p.pl.Plog.Printf("S%dN%d : received the Prepare ...\n", p.ShardID, p.NodeID)
 	// decode the message
 	pmsg := new(message.Prepare)
 	err := json.Unmarshal(content, pmsg)
 	if err != nil {
 		log.Panic(err)
 	}
+	p.pl.Plog.Printf("S%dN%d : received the Prepare from N%d...\n", p.ShardID, p.NodeID,pmsg.SenderNode.NodeID)
 
 	curView := p.view.Load()
 	p.pbftLock.Lock()
@@ -402,6 +403,7 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 	if err != nil {
 		log.Panic(err)
 	}
+	p.pl.Plog.Printf("S%dN%d received the Commit from ...%d\n", p.ShardID, p.NodeID, cmsg.SenderNode.NodeID)
 
 	curView := p.view.Load()
 	p.pbftLock.Lock()
@@ -417,7 +419,6 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 		return
 	}
 
-	p.pl.Plog.Printf("S%dN%d received the Commit from ...%d\n", p.ShardID, p.NodeID, cmsg.SenderNode.NodeID)
 
 	p.set2DMap2(string(cmsg.Digest), cmsg.SenderNode, cmsg.Answer)
 	//p.set2DMap(false,string(cmsg.Digest), cmsg.SenderNode)
@@ -515,6 +516,8 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 						Signs:     m3,
 						Signs2:    m4,
 						BlockHash: block.Hash,
+						PreBlockHash: block.Header.ParentBlockHash,
+						ShardId: p.ShardID,
 					}
 					if block.Body != nil && len(block.Body) > 0 {
 						report.Txs = block.Body
@@ -597,7 +600,9 @@ type ReportBlockReq struct {
 	Signs     []string            `json:"Signs" binding:"required"`
 	Signs2    []string            `json:"Signs2" `
 	BlockHash []byte              `json:"BlockHash" `
+	PreBlockHash []byte              `json:"PreBlockHash" `
 	Txs       []*core.Transaction `json:"Txs"`
+	ShardId uint64 `json:"ShardId" binding:"required"`
 }
 
 // this func is only invoked by the main node,

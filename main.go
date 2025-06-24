@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/spf13/pflag"
 	"io"
 	"io/ioutil"
 	"log"
@@ -732,9 +733,13 @@ func handlegeneratekey(reader *bufio.Reader) bool {
 }
 func handleexistprivatekey(reader *bufio.Reader) bool {
 	fmt.Println("Please enter the filename for the private key:")
-	filename, _ := reader.ReadString('\n')
-	filename = strings.TrimSpace(filename)
-
+	filename:=""
+	if !debug{
+		filename, _ = reader.ReadString('\n')
+		filename = strings.TrimSpace(filename)
+	}else {
+		filename=filename1
+	}
 	file, err := os.Open(filename)
 	if err != nil {
 		fmt.Println(err)
@@ -792,14 +797,12 @@ func tryjoin() bool {
 	}
 }
 
+var debug = false
+var filename1 string
 func main() {
 
-	//publickey := GetPublicKeyFromPrivateKey("48334408742440250708470803988495445476048475486486413194947831689378251593846")
-	//fmt.Println(publickey)
-	//global.PublicKey = publickey
-	//fmt.Println(GetAddress())
-	//
-	//return
+	pflag.StringVarP(&filename1, "filename", "f", "a", "the filename")
+	pflag.Parse()
 
 	printbanner()
 	printDisclaimers()
@@ -821,8 +824,15 @@ func main() {
 		fmt.Println("3: Query an account and its balance if given an address.")
 		fmt.Println("4: Transfer tokens to another account.")
 		fmt.Println("5: Claim BKC academic tokens through faucets.")
-		input0, _ := reader.ReadString('\n')
-		input0 = strings.TrimSpace(input0)
+		input0:=""
+		if debug {
+			input0 ="1"
+		}else {
+			input0, _ = reader.ReadString('\n')
+			input0 = strings.TrimSpace(input0)
+		}
+
+
 		if input0 == "3" {
 			handlequeryacc(reader)
 			fmt.Println()
@@ -860,8 +870,14 @@ func main() {
 		fmt.Println("Please enter an option:")
 		fmt.Println("1: Generate a pair of (public/private) keys for a new account")
 		fmt.Println("2: Use the private key of an existing account")
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(input)
+		input :="2"
+		if debug{
+			input ="2"
+		}else {
+			input, _ = reader.ReadString('\n')
+			input = strings.TrimSpace(input)
+		}
+
 		var _ error
 		flag := false
 		switch input {
@@ -906,6 +922,7 @@ func main() {
 		}
 		connect()
 		build.BuildNewPbftNode(uint64(nodeID), uint64(nodeNum), uint64(shardID), uint64(shardNum))
+		config = DynamicConfig{}
 		time.Sleep(1 * time.Second)
 	}
 
@@ -1244,6 +1261,9 @@ func WaitConstructShard() {
 				fmt.Println("Unmarshal error:", err)
 				continue
 			}
+			//fmt.Println("config:")
+			//fmt.Println(config)
+			//fmt.Println()
 
 			C.Close()
 			return
