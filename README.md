@@ -24,20 +24,20 @@ In BrokerChain’s ecosystem, anyone can become a researcher, miner, staker, mar
    3. Query an account and its balance if given an address.
    4. Transfer tokens to another account.
 
-![RunBrokerChain](images/img_16.png)
+![RunBrokerChain](images/img_22.png)
 
 
 2. Enter 1 and press enter to configure the private key used by the consensus node, you can see the following options:
    1. Generate new public/private keys.
    2. Use existed private key.
 
-![RunBrokerChain2](images/img_17.png)
+![RunBrokerChain2](images/img_23.png)
 
 If you want to use the previously generated private key, please enter 2. Here we assume it is the first time adding Enter the BrokerChain system, enter 1, and generate a new public-private key pair.
 
 The system prompts us to enter the storage location of the private key. If we enter 1.txt, the system will save the private key to the 1.txt file in the current BrokerChain folder.
 
-![RunBrokerChain3](images/img_18.png)
+![RunBrokerChain3](images/img_24.png)
 
 This private key is bound to your account and will only be stored locally without being sent to the network. Please keep your private key safe and do not share it with anyone, otherwise the assets in your account will be at risk. Meanwhile, if you lose your private key, you will not be able to retrieve the assets of your account.
 
@@ -77,17 +77,17 @@ After passing the Proof of Work (POW), the node waits to form a new shard.
 
 Due to the fact that a shard execution consensus protocol requires at least a certain amount of consensus nodes (e.g. 8), it is necessary to wait for some other nodes to join the system and form a new shard with your node.
 
-![RunBrokerChain3](images/img_19.png)
+![RunBrokerChain3](images/img_25.png)
 
 If your waiting time is too long, you can repeat the previous steps and start a new BrokerChain node with a different private key to reduce the waiting time for forming a new shard.
 
 After forming a new shard, the system displays the browser wallet address of the current node, which you can access in your browser.
 
-![RunBrokerChain4](images/img_20.png)
+![RunBrokerChain4](images/img_26.png)
 
 At the same time, the node will execute the consensus protocol to generate blocks, and you will receive block generation rewards.
 
-![RunBrokerChain5](images/img_21.png)
+![RunBrokerChain5](images/img_27.png)
 
 The browser wallet displays the account address and balance of the current node. As nodes execute consensus protocols to generate blocks, you will continue to receive block rewards and your account balance will continue to increase.
 
