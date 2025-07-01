@@ -212,7 +212,7 @@ func (bc *BlockChain) NewGenisisBlock() *core.Block {
 	bh.Bloom = *GetBloomFilter(body)
 	b := core.NewBlock(bh, body)
 	//b.Hash = b.Header.Hash()
-	b.Hash, _ = hex.DecodeString("eb374b5b7b6987cd5f94355ec74b2aed94aac5d946f7438623b336dcfe26c878")
+	b.Hash, _ = hex.DecodeString("d56c891e1916139079c407751c5a8d3e7d3e1e4f76ebcbfc18038cbb4af02e98")
 	return b
 }
 
