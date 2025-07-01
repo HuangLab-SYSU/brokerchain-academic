@@ -8,6 +8,8 @@ import (
 	"blockEmulator/params"
 	"blockEmulator/storage"
 	"blockEmulator/utils"
+	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
@@ -209,7 +211,8 @@ func (bc *BlockChain) NewGenisisBlock() *core.Block {
 	bh.TxRoot = GetTxTreeRoot(body)
 	bh.Bloom = *GetBloomFilter(body)
 	b := core.NewBlock(bh, body)
-	b.Hash = b.Header.Hash()
+	//b.Hash = b.Header.Hash()
+	b.Hash, _ = hex.DecodeString("eb374b5b7b6987cd5f94355ec74b2aed94aac5d946f7438623b336dcfe26c878")
 	return b
 }
 
@@ -234,10 +237,10 @@ func (bc *BlockChain) AddBlock(b *core.Block) {
 		return
 	}
 
-	//if !bytes.Equal(b.Header.ParentBlockHash, bc.CurrentBlock.Hash) {
-	//	fmt.Println("err parent block hash")
-	//	return
-	//}
+	if !bytes.Equal(b.Header.ParentBlockHash, bc.CurrentBlock.Hash) {
+		fmt.Println("err parent block hash")
+		return
+	}
 
 	// if the treeRoot is existed in the node, the transactions is no need to be handled again
 	_, err := trie.New(trie.TrieID(common.BytesToHash(b.Header.StateRoot)), bc.Triedb)
@@ -267,7 +270,7 @@ func NewBlockChain2(cc *params.ChainConfig, db ethdb.Database, r string) (*Block
 		if err.Error() == "cannot find the newest block hash" {
 			genisisBlock := bc.NewGenisisBlock()
 			bc.AddGenisisBlock(genisisBlock)
-			fmt.Println("New genisis block")
+			fmt.Println("New genesis block")
 			return bc, nil
 		}
 		log.Panic()
@@ -328,7 +331,7 @@ func NewBlockChain(cc *params.ChainConfig, db ethdb.Database) (*BlockChain, erro
 		if err.Error() == "cannot find the newest block hash" {
 			genisisBlock := bc.NewGenisisBlock()
 			bc.AddGenisisBlock(genisisBlock)
-			fmt.Println("New genisis block")
+			fmt.Println("New genesis block")
 			return bc, nil
 		}
 		log.Panic()
@@ -359,7 +362,7 @@ func NewBlockChain(cc *params.ChainConfig, db ethdb.Database) (*BlockChain, erro
 
 // check a block is valid or not in this blockchain config
 func (bc *BlockChain) IsValidBlock(b *core.Block) error {
-	return nil
+	//return nil
 	if string(b.Header.ParentBlockHash) != string(bc.CurrentBlock.Hash) {
 		fmt.Println("the parentblock hash is not equal to the current block hash")
 		return errors.New("the parentblock hash is not equal to the current block hash")

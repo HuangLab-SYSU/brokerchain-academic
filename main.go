@@ -820,10 +820,10 @@ func main() {
 	for {
 		fmt.Println("Welcome. Please enter an option:")
 		fmt.Println("1: Join BrokerChain as a consensus node && Open the wallet.")
-		fmt.Println("2: Open the wallet.")
+		fmt.Println("2: Open a wallet.")
 		fmt.Println("3: Query an account and its balance if given an address.")
 		fmt.Println("4: Transfer tokens to another account.")
-		fmt.Println("5: Claim BKC academic tokens through faucets.")
+		fmt.Println("5: Claim BKC tokens through faucets.")
 		input0:=""
 		if debug {
 			input0 ="1"

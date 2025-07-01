@@ -533,7 +533,7 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 			}
 
 			p.isReply[string(cmsg.Digest)] = true
-			p.pl.Plog.Printf("S%dN%d: this round of pbft %d is end \n", p.ShardID, p.NodeID, p.sequenceID)
+			p.pl.Plog.Printf("S%dN%d: The #%d round of PBFT consensus has concluded \n", p.ShardID, p.NodeID, p.sequenceID)
 			p.sequenceID += 1
 		}
 
