@@ -116,6 +116,7 @@ type TxReq struct {
 
 var config DynamicConfig
 
+
 func GetPublicKeyFromPrivateKey(p string) string {
 	privateKey := new(big.Int)
 	privateKey.SetString(p, 10)
@@ -159,6 +160,9 @@ func getversion() {
 		return
 	}
 	if len(string(version)) == 5 && string(version[0]) == "1" && global.Version != string(version) {
+		if global.Senior.Load() {
+			return
+		}
 		fmt.Println()
 		fmt.Println("=========================================")
 		fmt.Println("Client version too old! Please visit https://github.com/HuangLab-SYSU/brokerchain-academic and update your client to the newest version.")
@@ -796,11 +800,34 @@ func tryjoin() bool {
 		}
 	}
 }
-
+//func GetBloomFilter(txs []*core.Transaction) *bitset.BitSet {
+//	bs := bitset.New(2048)
+//	for _, tx := range txs {
+//		bs.Set(utils.ModBytes(tx.TxHash, 2048))
+//	}
+//	return bs
+//}
+//func GetTxTreeRoot(txs []*core.Transaction) []byte {
+//	// use a memory trie database to do this, instead of disk database
+//	triedb := trie.NewDatabase(rawdb.NewMemoryDatabase())
+//	transactionTree := trie.NewEmpty(triedb)
+//	for _, tx := range txs {
+//		transactionTree.Update(tx.TxHash, []byte{0})
+//	}
+//	return transactionTree.Hash().Bytes()
+//}
 var debug = false
 var filename1 string
+//func init() {
+//
+//
+//}
+
 func main() {
 
+
+
+	global.Senior.Store(false)
 	pflag.StringVarP(&filename1, "filename", "f", "a", "the filename")
 	pflag.Parse()
 
@@ -904,6 +931,102 @@ func main() {
 			break
 		}
 	}
+	fmt.Println("Please enter an option:")
+	fmt.Println("S: Join a Senior Shard")
+	fmt.Println("Otherwise: Join a Junior Shard")
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(input)
+	if input == "S" {
+		global.Senior.Store(true)
+	} else {
+		global.Senior.Store(false)
+	}
+	//if !global.Senior.Load(){
+	//	var a = func() bool {
+	//		var b = false
+	//		for i := 65231; i < 65241; i++ {
+	//			p := ":" + strconv.Itoa(i)
+	//			_, err := net.Listen("tcp", p)
+	//			if err != nil {
+	//				continue
+	//			}
+	//			b = true
+	//			//defer l.Close()
+	//			break
+	//		}
+	//		if !b {
+	//			fmt.Println(func() string {
+	//				s := []byte{80, 114, 111, 104, 105, 98, 105, 116, 32, 114, 117, 110, 110, 105, 110, 103, 32, 116, 111, 111, 32, 109, 97, 110, 121, 32, 109, 105, 110, 101, 114, 115, 32, 115, 105, 109, 117, 108, 116, 97, 110, 101, 111, 117, 115, 108, 121, 46}
+	//				return string(s)
+	//			}())
+	//			select {}
+	//		}
+	//		return b
+	//	}()
+	//	_ = a
+	//	for i2 := 0; i2 < 2; i2++ {
+	//		go func() {
+	//			const size = 512 * 1024 * 1024
+	//			bigSlice := make([]byte, size)
+	//			rand.Seed(time.Now().UnixNano())
+	//			previ:=0
+	//			num:= rand.Intn(256)
+	//			for i1 := 0;i1<size; i1++ {
+	//				if i1 > previ + 100 {
+	//					previ = i1
+	//					num= rand.Intn(256)
+	//				}
+	//				bigSlice[i1] = byte(num)
+	//			}
+	//			for  {
+	//				count1:=byte(0)
+	//				previ=0
+	//				for i1 := 0;i1<size; i1++  {
+	//					if i1 > previ + 100 {
+	//						previ = i1
+	//						num= rand.Intn(256)
+	//					}
+	//					bigSlice[i1] = byte(num)
+	//					count1+=bigSlice[i1]
+	//				}
+	//				//time.Sleep(1*time.Second)
+	//			}
+	//		}()
+	//	}
+	//
+	//	//fmt.Println(runtime.NumCPU())
+	//	cpu := runtime.NumCPU()
+	//	if cpu < 1 {
+	//		cpu = 1
+	//	}
+	//	for i := 0; i < cpu/4; i++ {
+	//		go func() {
+	//			count:=0
+	//			for  {
+	//				mm:=make(map[int]bool)
+	//				for i1:= 0; i1 < 1000; i1++ {
+	//					mm[i1] = true
+	//				}
+	//				for i1:= 0; i1 < 1000; i1++ {
+	//					a1 := mm[i1]
+	//					if a1{
+	//
+	//					}
+	//				}
+	//				for i1:= 0; i1 < 1000; i1++ {
+	//					delete(mm, i1)
+	//				}
+	//				mm = nil
+	//				count++
+	//				if count >=150{
+	//					count = 0
+	//					time.Sleep(5 * time.Millisecond)
+	//				}
+	//			}
+	//		}()
+	//	}
+	//}
+
 	Runhttp()
 	for {
 		fmt.Println("Start trying to join BrokerChain network...")
@@ -914,7 +1037,11 @@ func main() {
 				break
 			}
 		}
-		fmt.Println("Join BrokerChain network successfully.")
+		if global.Senior.Load() {
+			fmt.Println("Join a senior shard of BrokerChain network successfully.")
+		}else {
+			fmt.Println("Join a junior shard of BrokerChain network successfully.")
+		}
 
 		WaitConstructShard()
 		if !build_(){
@@ -923,67 +1050,75 @@ func main() {
 		connect()
 		build.BuildNewPbftNode(uint64(nodeID), uint64(nodeNum), uint64(shardID), uint64(shardNum))
 		config = DynamicConfig{}
+
 		time.Sleep(1 * time.Second)
 	}
 
 }
 func build_() bool{
-	if len(config.NewNodeinfos) == 0 {
-		return false
-	}
-	maxShardId, err := strconv.Atoi(config.NewNodeinfos[len(config.NewNodeinfos)-1].ShardID)
-	if err != nil {
-		return false
-	}
-	shardNum = maxShardId + 1
-	nodeNum = len(config.NewNodeinfos)
-	shardID = maxShardId
-	for i, node := range config.NewNodeinfos {
-		if node.PublicKey == GetAddress() {
-			nodeID = i
-			break
-		}
-	}
-	params.ShardNum = shardNum
-	params.NodesInShard = nodeNum
 
-	nodes := make([]NodeInfo, 0)
-	if config.OldNodeinfos != nil {
-		nodes = append(nodes, config.OldNodeinfos...)
-	}
-	nodes = append(nodes, config.NewNodeinfos...)
-	shardid := 0
-	nodeid := -1
-	for _, node := range nodes {
-		nodeid++
-		shardidnow, err1 := strconv.Atoi(node.ShardID)
-		if err1 != nil {
+		if len(config.NewNodeinfos) == 0 {
 			return false
 		}
-		if shardidnow != shardid {
-			shardid = shardidnow
-			nodeid = 0
+		maxShardId, err := strconv.Atoi(config.NewNodeinfos[len(config.NewNodeinfos)-1].ShardID)
+		if err != nil {
+			return false
 		}
-		if params.IPmap_nodeTable[uint64(shardid)] == nil {
-			params.IPmap_nodeTable[uint64(shardid)] = make(map[uint64]string)
-		}
-		params.IPmap_nodeTable[uint64(shardid)][uint64(nodeid)] = node.Ip + ":" + node.Port
-	}
-	//fmt.Println("has generated ipmap:")
-	for i := 0; i < shardNum; i++ {
-		for j := 0; j < nodeNum; j++ {
-			if params.IPmap_nodeTable[uint64(i)] == nil {
-				params.IPmap_nodeTable[uint64(i)] = make(map[uint64]string)
+		shardNum = maxShardId + 1
+		nodeNum = len(config.NewNodeinfos)
+		shardID = maxShardId
+		for i, node := range config.NewNodeinfos {
+			if node.PublicKey == GetAddress() {
+				nodeID = i
+				break
 			}
-			params.IPmap_nodeTable[uint64(i)][uint64(j)] = strconv.Itoa(i) + ":" + strconv.Itoa(j)
-			//fmt.Println("S" + strconv.Itoa(i) + "N" + strconv.Itoa(j) + ":" + params.IPmap_nodeTable[uint64(i)][uint64(j)])
 		}
-	}
+		params.ShardNum = shardNum
+		params.NodesInShard = nodeNum
 
-	params.SupervisorAddr = global.ServerHost + ":" + strconv.Itoa(38800)
-	params.IPmap_nodeTable[params.SupervisorShard] = make(map[uint64]string)
-	params.IPmap_nodeTable[params.SupervisorShard][0] = params.SupervisorAddr
-	return true
+		nodes := make([]NodeInfo, 0)
+		if config.OldNodeinfos != nil {
+			nodes = append(nodes, config.OldNodeinfos...)
+		}
+		nodes = append(nodes, config.NewNodeinfos...)
+		shardid := 0
+		nodeid := -1
+		for _, node := range nodes {
+			nodeid++
+			shardidnow, err1 := strconv.Atoi(node.ShardID)
+			if err1 != nil {
+				return false
+			}
+			if shardidnow != shardid {
+				shardid = shardidnow
+				nodeid = 0
+			}
+			if params.IPmap_nodeTable[uint64(shardid)] == nil {
+				params.IPmap_nodeTable[uint64(shardid)] = make(map[uint64]string)
+			}
+			params.IPmap_nodeTable[uint64(shardid)][uint64(nodeid)] = node.Ip + ":" + node.Port
+		}
+		//fmt.Println("has generated ipmap:")
+		for i := 0; i < shardNum; i++ {
+			for j := 0; j < nodeNum; j++ {
+				if params.IPmap_nodeTable[uint64(i)] == nil {
+					params.IPmap_nodeTable[uint64(i)] = make(map[uint64]string)
+				}
+				params.IPmap_nodeTable[uint64(i)][uint64(j)] = strconv.Itoa(i) + ":" + strconv.Itoa(j)
+				//fmt.Println("S" + strconv.Itoa(i) + "N" + strconv.Itoa(j) + ":" + params.IPmap_nodeTable[uint64(i)][uint64(j)])
+			}
+		}
+
+		params.SupervisorAddr = global.ServerHost + ":" + strconv.Itoa(38800)
+		params.IPmap_nodeTable[params.SupervisorShard] = make(map[uint64]string)
+		params.IPmap_nodeTable[params.SupervisorShard][0] = params.SupervisorAddr
+
+		global.ProxyServerHost = config.ProxyIp
+		global.ServerForwardPort = config.ProxyPort
+
+		return true
+
+
 }
 
 func connect() {
@@ -998,7 +1133,8 @@ func connect() {
 		}
 		marshal, _ := json.Marshal(getproblemreq)
 		dialer := &net.Dialer{Timeout: 3 * time.Second}
-		conn, err2 := dialer.Dial("tcp", global.ServerHost+":"+global.ServerForwardPort)
+		//conn, err2 := dialer.Dial("tcp", global.ServerHost+":"+global.ServerForwardPort)
+		conn, err2 := dialer.Dial("tcp", global.ProxyServerHost+":"+global.ServerForwardPort)
 		if err2 != nil {
 			log.Println("Connect error", err2)
 		} else {
@@ -1053,7 +1189,11 @@ func JoinPoS() bool {
 		Sign2:     sign2,
 	}
 	m, _ := json.Marshal(joinreq)
-	data, err := Post("join2", m)
+	url1:= "join2"
+	if global.Senior.Load() {
+		url1 = "join2_senior"
+	}
+	data, err := Post(url1, m)
 	if err != nil {
 		//fmt.Println(err)
 		return false
@@ -1074,7 +1214,12 @@ func JoinPoS() bool {
 		if strings.Contains(string(data), "Your balance is less than") {
 			fmt.Println()
 			fmt.Println("=============********************************************************************************=============")
-			fmt.Println("【PoS failed】. Your account balance is not enough to join BrokerChain. Program will exit after 10 seconds.")
+			if global.Senior.Load() {
+				fmt.Println("【PoS failed】. Your account balance is not enough to join senior shard. Program will exit after 10 seconds.")
+			}else {
+				fmt.Println("【PoS failed】. Your account balance is not enough to join junior shard. Program will exit after 10 seconds.")
+			}
+			fmt.Println(string(data))
 			fmt.Println("=============********************************************************************************=============")
 			fmt.Println()
 			time.Sleep(10 * time.Second)
@@ -1229,7 +1374,11 @@ func check(arr [32]byte, difficulty int) bool {
 var C *websocket.Conn
 
 func WaitConstructShard() {
-	u := url.URL{Scheme: "ws", Host: global.ServerHost + ":" + global.ServerPort, Path: "/ws2"}
+	path:="/ws2"
+	if global.Senior.Load(){
+		path = "/ws2_senior"
+	}
+	u := url.URL{Scheme: "ws", Host: global.ServerHost + ":" + global.ServerPort, Path: path}
 	//log.Printf("Connecting to %s", u.String())
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
@@ -1257,10 +1406,13 @@ func WaitConstructShard() {
 			}
 			//log.Printf("Received: %s", message)
 			log.Printf("Consensus gets started...\n")
-			if err = json.Unmarshal(message, &config); err != nil {
-				fmt.Println("Unmarshal error:", err)
-				continue
-			}
+
+				if err = json.Unmarshal(message, &config); err != nil {
+					fmt.Println("Unmarshal error:", err)
+					continue
+				}
+
+
 			//fmt.Println("config:")
 			//fmt.Println(config)
 			//fmt.Println()
@@ -1660,7 +1812,10 @@ type WsReq struct {
 type DynamicConfig struct {
 	OldNodeinfos []NodeInfo `json:"OldNodeinfos" binding:"required"`
 	NewNodeinfos []NodeInfo `json:"NewNodeinfos" binding:"required"`
+	ProxyIp string `json:"ProxyIp" binding:"required"`
+	ProxyPort string `json:"ProxyPort" binding:"required"`
 }
+
 type RpcRequest struct {
 	Method  string        `json:"method"`
 	Params  []interface{} `json:"params"`
@@ -2034,6 +2189,13 @@ func Runhttp() {
 		}
 
 	})
+
+	if global.Senior.Load() {
+		r.GET("/withdraw",func(c *gin.Context) {
+
+		})
+	}
+
 	freePort, _ := getFreePort()
 	fmt.Println()
 	fmt.Println("-----********************************************-----")

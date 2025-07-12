@@ -133,7 +133,8 @@ func (cphm *CLPAPbftInsideExtraHandleMod) getCollectOver() bool {
 	return cphm.cdm.CollectOver
 }
 func (cphm *CLPAPbftInsideExtraHandleMod) proposePartition2() (bool, *message.Request) {
-	cphm.pbftNode.pl.Plog.Printf("S%dN%d : begin partition proposing\n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
+	//cphm.pbftNode.pl.Plog.Printf("S%dN%d : begin partition proposing\n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
+	cphm.pbftNode.pl.Plog.Printf("S%d : begin partition proposing\n", cphm.pbftNode.ShardID)
 
 	atm := cphm.cdm.ModifiedMap2
 	atmbyte := atm.Encode()
@@ -148,7 +149,8 @@ func (cphm *CLPAPbftInsideExtraHandleMod) proposePartition2() (bool, *message.Re
 }
 // propose a partition message
 func (cphm *CLPAPbftInsideExtraHandleMod) proposePartition() (bool, *message.Request) {
-	cphm.pbftNode.pl.Plog.Printf("S%dN%d : begin partition proposing\n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
+	//cphm.pbftNode.pl.Plog.Printf("S%dN%d : begin partition proposing\n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
+	cphm.pbftNode.pl.Plog.Printf("S%d : begin partition proposing\n", cphm.pbftNode.ShardID)
 	// add all data in pool into the set
 	for _, at := range cphm.cdm.AccountStateTx {
 		for i, addr := range at.Addrs {

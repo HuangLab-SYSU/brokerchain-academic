@@ -163,7 +163,8 @@ func (cphm *CLPAPbftInsideExtraHandleMod_forBroker) getCollectOver() bool {
 
 // propose a partition message
 func (cphm *CLPAPbftInsideExtraHandleMod_forBroker) proposePartition() (bool, *message.Request) {
-	cphm.pbftNode.pl.Plog.Printf("S%dN%d : begin partition proposing\n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
+	//cphm.pbftNode.pl.Plog.Printf("S%dN%d : begin partition proposing\n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
+	cphm.pbftNode.pl.Plog.Printf("S%d : begin partition proposing\n", cphm.pbftNode.ShardID)
 	// add all data in pool into the set
 	for _, at := range cphm.cdm.AccountStateTx {
 		for i, addr := range at.Addrs {

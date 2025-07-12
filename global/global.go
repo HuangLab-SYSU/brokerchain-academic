@@ -3,6 +3,7 @@ package global
 import (
 	"math/big"
 	"net"
+	"sync/atomic"
 )
 
 var PublicKey = ""
@@ -13,6 +14,7 @@ var LocalPort = 63259
 
 //var ServerHost = "127.0.0.1"
 var ServerHost = "academic.broker-chain.com"
+var ProxyServerHost = "academic.broker-chain.com"
 var ServerPort = "56741"
 var ServerForwardPort = "56743"
 var MyIp = ""
@@ -20,3 +22,5 @@ var MyIp = ""
 var Conn net.Conn
 
 var Version = "1.0.3"
+
+var Senior atomic.Bool

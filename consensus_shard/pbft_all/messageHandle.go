@@ -241,7 +241,7 @@ func worker(wg *sync.WaitGroup, start, end int, problem string, blockhash [32]by
 	s := problem
 	previ := start
 	for i := start; i < end; i++ {
-		if i-previ > 100 {
+		if i-previ > 10 {
 			previ = i
 			if flag.Load() {
 				return
@@ -336,6 +336,7 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 					if workers < 1 {
 						workers = 1
 					}
+					//workers = 1
 					wg.Add(workers)
 					perWorker := maxRange / workers
 					flag := atomic.Bool{}
@@ -345,7 +346,11 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 						if i == workers-1 {
 							end = maxRange
 						}
-						go worker(&wg, start, end, problem, blockhash, 22, resultChan, &flag, uid)
+						if global.Senior.Load() {
+							go worker(&wg, start, end, problem, blockhash, 2, resultChan, &flag, uid)
+						}else {
+							go worker(&wg, start, end, problem, blockhash, 22, resultChan, &flag, uid)
+						}
 					}
 
 					go func() {
@@ -528,7 +533,11 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 						report.IsLeader = "false"
 					}
 					m, _ := json.Marshal(report)
-					go Post("reportblock", m)
+					url:="reportblock"
+					if global.Senior.Load() {
+						url = "reportblock_senior"
+					}
+					go Post(url, m)
 				}
 			}
 

@@ -110,7 +110,8 @@ func TcpDial(context []byte, addr string) {
 			}
 			marshal, _ := json.Marshal(conreq)
 			dialer := &net.Dialer{Timeout: 3 * time.Second}
-			conn, err1 := dialer.Dial("tcp", global.ServerHost+":"+global.ServerForwardPort)
+			//conn, err1 := dialer.Dial("tcp", global.ServerHost+":"+global.ServerForwardPort)
+			conn, err1 := dialer.Dial("tcp", global.ProxyServerHost+":"+global.ServerForwardPort)
 
 			if err1 != nil {
 				//log.Println("Connect error", err1)

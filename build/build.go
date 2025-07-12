@@ -2,9 +2,11 @@ package build
 
 import (
 	"blockEmulator/consensus_shard/pbft_all"
+
 	"blockEmulator/networks"
 	"blockEmulator/params"
 	"blockEmulator/supervisor"
+
 	"time"
 )
 
@@ -66,6 +68,7 @@ func BuildNewPbftNode(nid, nnm, sid, snm uint64) {
 	go worker.TcpListen()
 	go worker.HandleClientRequest2()
 	go worker.Beat()
+
 
 
 	//for j := 0; j < int(nnm); j++ {
