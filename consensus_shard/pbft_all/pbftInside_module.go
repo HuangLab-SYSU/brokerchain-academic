@@ -32,10 +32,12 @@ func (rphm *RawRelayPbftExtraHandleMod) HandleinPropose() (bool, *message.Reques
 // the DIY operation in preprepare
 func (rphm *RawRelayPbftExtraHandleMod) HandleinPrePrepare(ppmsg *message.PrePrepare) bool {
 	if rphm.pbftNode.CurChain.IsValidBlock(core.DecodeB(ppmsg.RequestMsg.Msg.Content)) != nil {
-		rphm.pbftNode.pl.Plog.Printf("S%dN%d : not a valid block\n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID)
+		rphm.pbftNode.pl.Plog.Printf("S%d : not a valid block\n", rphm.pbftNode.ShardID)
+		//rphm.pbftNode.pl.Plog.Printf("S%dN%d : not a valid block\n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID)
 		return false
 	}
-	rphm.pbftNode.pl.Plog.Printf("S%dN%d : the pre-prepare message is correct, putting it into the RequestPool. \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID)
+	rphm.pbftNode.pl.Plog.Printf("S%d : the pre-prepare message is correct, putting it into the RequestPool. \n", rphm.pbftNode.ShardID)
+	//rphm.pbftNode.pl.Plog.Printf("S%dN%d : the pre-prepare message is correct, putting it into the RequestPool. \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID)
 	rphm.pbftNode.requestPool[string(ppmsg.Digest)] = ppmsg.RequestMsg
 	// merge to be a prepare message
 	return true
@@ -52,14 +54,17 @@ func (rphm *RawRelayPbftExtraHandleMod) HandleinCommit(cmsg *message.Commit) boo
 	r := rphm.pbftNode.requestPool[string(cmsg.Digest)]
 	// requestType ...
 	block := core.DecodeB(r.Msg.Content)
-	rphm.pbftNode.pl.Plog.Printf("S%dN%d : adding the block %d...now height = %d \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID, block.Header.Number, rphm.pbftNode.CurChain.CurrentBlock.Header.Number)
+	//rphm.pbftNode.pl.Plog.Printf("S%dN%d : adding the block %d...now height = %d \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID, block.Header.Number, rphm.pbftNode.CurChain.CurrentBlock.Header.Number)
+	rphm.pbftNode.pl.Plog.Printf("S%d : adding the block %d...now height = %d \n", rphm.pbftNode.ShardID, block.Header.Number, rphm.pbftNode.CurChain.CurrentBlock.Header.Number)
 	rphm.pbftNode.CurChain.AddBlock(block)
-	rphm.pbftNode.pl.Plog.Printf("S%dN%d : added the block %d... \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID, block.Header.Number)
+	rphm.pbftNode.pl.Plog.Printf("S%d : added the block %d... \n", rphm.pbftNode.ShardID, block.Header.Number)
+	//rphm.pbftNode.pl.Plog.Printf("S%dN%d : added the block %d... \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID, block.Header.Number)
 	rphm.pbftNode.CurChain.PrintBlockChain()
 
 	// now try to relay txs to other shards (for main nodes)
 	if rphm.pbftNode.NodeID == uint64(rphm.pbftNode.view.Load()) {
-		rphm.pbftNode.pl.Plog.Printf("S%dN%d : main node is trying to send relay txs at height = %d \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID, block.Header.Number)
+		rphm.pbftNode.pl.Plog.Printf("S%d : main node is trying to send relay txs at height = %d \n", rphm.pbftNode.ShardID, block.Header.Number)
+		//rphm.pbftNode.pl.Plog.Printf("S%dN%d : main node is trying to send relay txs at height = %d \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID, block.Header.Number)
 		// generate relay pool and collect txs excuted
 		rphm.pbftNode.CurChain.Txpool.RelayPool = make(map[uint64][]*core.Transaction)
 		interShardTxs := make([]*core.Transaction, 0)
@@ -106,7 +111,8 @@ func (rphm *RawRelayPbftExtraHandleMod) HandleinCommit(cmsg *message.Commit) boo
 		//}
 		//msg_send := message.MergeMessage(message.CBlockInfo, bByte)
 		//go networks.TcpDial(msg_send, rphm.pbftNode.ip_nodeTable[params.SupervisorShard][0])
-		rphm.pbftNode.pl.Plog.Printf("S%dN%d : sended excuted txs\n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID)
+		rphm.pbftNode.pl.Plog.Printf("S%d : sended excuted txs\n", rphm.pbftNode.ShardID)
+		//rphm.pbftNode.pl.Plog.Printf("S%dN%d : sended excuted txs\n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID)
 		rphm.pbftNode.CurChain.Txpool.GetLocked()
 		metricName := []string{
 			"Block Height",
@@ -150,7 +156,8 @@ func (rphm *RawRelayPbftExtraHandleMod) HandleReqestforOldSeq(*message.RequestOl
 // the operation for sequential requests
 func (rphm *RawRelayPbftExtraHandleMod) HandleforSequentialRequest(som *message.SendOldMessage) bool {
 	if int(som.SeqEndHeight-som.SeqStartHeight+1) != len(som.OldRequest) {
-		rphm.pbftNode.pl.Plog.Printf("S%dN%d : the SendOldMessage message is not enough\n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID)
+		//rphm.pbftNode.pl.Plog.Printf("S%dN%d : the SendOldMessage message is not enough\n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID)
+		rphm.pbftNode.pl.Plog.Printf("S%d : the SendOldMessage message is not enough\n", rphm.pbftNode.ShardID)
 	} else { // add the block into the node pbft blockchain
 		for height := som.SeqStartHeight; height <= som.SeqEndHeight; height++ {
 			r := som.OldRequest[height-som.SeqStartHeight]

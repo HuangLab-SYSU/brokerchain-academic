@@ -52,7 +52,8 @@ func (cphm *CLPAPbftInsideExtraHandleMod_forBroker) HandleinPrePrepare(ppmsg *me
 
 	if isPartitionReq {
 		// after some checking
-		cphm.pbftNode.pl.Plog.Printf("S%dN%d : a partition block\n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
+		//cphm.pbftNode.pl.Plog.Printf("S%dN%d : a partition block\n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
+		cphm.pbftNode.pl.Plog.Printf("S%d : a partition block\n", cphm.pbftNode.ShardID)
 	} else {
 		// the request is a block
 		if cphm.pbftNode.CurChain.IsValidBlock(core.DecodeB(ppmsg.RequestMsg.Msg.Content)) != nil {

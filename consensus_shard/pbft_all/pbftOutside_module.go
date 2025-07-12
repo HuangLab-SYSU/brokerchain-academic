@@ -125,5 +125,6 @@ func (rrom *RawRelayOutsideModule) handleInjectTx(content []byte) {
 		log.Panic(err)
 	}
 	rrom.pbftNode.CurChain.Txpool.AddTxs2Pool(it.Txs)
-	rrom.pbftNode.pl.Plog.Printf("S%dN%d : has handled injected txs msg, txs: %d \n", rrom.pbftNode.ShardID, rrom.pbftNode.NodeID, len(it.Txs))
+	//rrom.pbftNode.pl.Plog.Printf("S%dN%d : has handled injected txs msg, txs: %d \n", rrom.pbftNode.ShardID, rrom.pbftNode.NodeID, len(it.Txs))
+	rrom.pbftNode.pl.Plog.Printf("S%d : has handled injected txs msg, txs: %d \n", rrom.pbftNode.ShardID, len(it.Txs))
 }
