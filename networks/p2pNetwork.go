@@ -118,8 +118,13 @@ func TcpDial(context []byte, addr string) {
 			} else {
 				conn.(*net.TCPConn).SetKeepAlive(true)
 				global.Conn = conn
+				bytes2 := []byte("")
+				if global.Senior.Load(){
+					bytes2 = message.MergeMessage2("auth2", marshal)
+				}else {
+					bytes2 = message.MergeMessage2("auth", marshal)
+				}
 
-				bytes2 := message.MergeMessage2("auth", marshal)
 				global.Conn.Write(append(bytes2, '\n'))
 				break
 			}

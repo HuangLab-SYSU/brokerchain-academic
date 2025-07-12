@@ -1114,7 +1114,9 @@ func build_() bool{
 		params.IPmap_nodeTable[params.SupervisorShard][0] = params.SupervisorAddr
 
 		global.ProxyServerHost = config.ProxyIp
+		//fmt.Println("proxy:", global.ProxyServerHost)
 		global.ServerForwardPort = config.ProxyPort
+		//fmt.Println("port:", global.ServerForwardPort)
 
 		return true
 
@@ -1140,7 +1142,11 @@ func connect() {
 		} else {
 			conn.(*net.TCPConn).SetKeepAlive(true)
 			global.Conn = conn
-			networks.TcpDial(marshal, "auth")
+			aa:="auth"
+			if global.Senior.Load(){
+				aa="auth2"
+			}
+			networks.TcpDial(marshal, aa)
 			break
 		}
 		time.Sleep( 500*time.Millisecond )

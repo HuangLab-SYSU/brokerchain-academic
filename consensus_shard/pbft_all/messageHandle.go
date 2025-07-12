@@ -503,7 +503,11 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 							s_ := string(block1.Hash) + v
 							arr1 := sha256.Sum256([]byte(s_))
 							arr2 := convertTo32ByteArray(block1.Hash)
-							if check(arr1, arr2, 22) {
+							diff:=22
+							if global.Senior.Load(){
+								diff = 2
+							}
+							if check(arr1, arr2, diff) {
 								//fmt.Println("验证成功："+v)
 								s1 := strconv.Itoa(int(k.ShardID)) + ":" + strconv.Itoa(int(k.NodeID))
 								m3 = append(m3, s1)

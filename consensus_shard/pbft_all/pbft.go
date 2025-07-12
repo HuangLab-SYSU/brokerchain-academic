@@ -316,9 +316,9 @@ func (p *PbftConsensusNode) Beat(){
 		}
 		if time.Since(p.lastbeattime).Seconds() >= 5{
 			addr:="beat"
-			//if global.Senior.Load() {
-			//	addr = "beat2"
-			//}
+			if global.Senior.Load() {
+				addr = "beat2"
+			}
 			networks.TcpDial([]byte(""),addr)
 			p.lastbeattime = time.Now()
 		}
