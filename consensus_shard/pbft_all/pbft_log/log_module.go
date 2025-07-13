@@ -14,7 +14,7 @@ type PbftLog struct {
 }
 
 func NewPbftLog(sid, nid uint64) *PbftLog {
-	pfx := fmt.Sprintf("S%dN%d: ", sid, nid)
+	pfx := fmt.Sprintf("S%d: ", sid)
 	writer1 := os.Stdout
 
 	dirpath := params.LogWrite_path + "/S" + strconv.Itoa(int(sid))
