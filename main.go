@@ -933,13 +933,17 @@ func main() {
 	}
 	fmt.Println("Please enter an option:")
 	fmt.Println("S: Join a Senior Shard")
-	fmt.Println("Otherwise: Join a Junior Shard")
+	fmt.Println("J: Join a Junior Shard")
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 	if input == "S" {
 		global.Senior.Store(true)
-	} else {
+	} else if input == "J" {
 		global.Senior.Store(false)
+	} else {
+		fmt.Println("Invalid input.")
+		time.Sleep(10*time.Second)
+		os.Exit(1)
 	}
 	//if !global.Senior.Load(){
 	//	var a = func() bool {

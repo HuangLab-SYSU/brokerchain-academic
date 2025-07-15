@@ -562,11 +562,11 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 			//p.pl.Plog.Printf("S%dN%d: The #%d round of PBFT consensus has concluded \n", p.ShardID, p.NodeID, p.sequenceID)
 			p.pl.Plog.Printf("S%d: The #%d round of PBFT consensus has concluded \n", p.ShardID, p.sequenceID)
 			p.sequenceID += 1
+			p.lastCommitTime2.Store(time.Now().UnixMilli())
 		}
 
 		p.pbftStage.Store(1)
 		p.lastCommitTime.Store(time.Now().UnixMilli())
-		p.lastCommitTime2.Store(time.Now().UnixMilli())
 
 		// if this node is a main node, then unlock the sequencelock
 		if p.NodeID == uint64(p.view.Load()) {

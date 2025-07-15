@@ -20,8 +20,7 @@ func (p *PbftConsensusNode) viewChangePropose() {
 
 	add := p.viewchangecount.Add(1)
 	itoa := strconv.Itoa(int(add))
-	p.pl.Plog.Println("This is the time #["+ itoa+"] attempt to perform view change. Note that this may happens 10 times in total, please be patient and wait.")
-
+	p.pl.Plog.Println("This is the time #["+ itoa+"] attempt to perform view change. Note that this may happen 10 times in total, please be patient and wait.")
 	vcmsg := message.ViewChangeMsg{
 		CurView:  int(p.view.Load()),
 		NextView: int(p.view.Load()+1) % int(p.node_nums),
