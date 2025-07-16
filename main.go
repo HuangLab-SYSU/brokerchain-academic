@@ -1032,6 +1032,8 @@ func main() {
 	//}
 
 	Runhttp()
+	f:=false
+	global.Randomstr = uuid.New().String()
 	for {
 		fmt.Println("Start trying to join BrokerChain network...")
 		for  {
@@ -1040,6 +1042,20 @@ func main() {
 			} else {
 				break
 			}
+		}
+		if !f {
+			f = true
+			go func() {
+				beatreq := BeatReq{
+					PublicKey: global.PublicKey,
+					RandomStr: global.Randomstr,
+				}
+				m, _ := json.Marshal(beatreq)
+				for  {
+					go Post("beat", m)
+					time.Sleep(5 * time.Second)
+				}
+			}()
 		}
 		if global.Senior.Load() {
 			fmt.Println("Join a senior shard of BrokerChain network successfully.")
@@ -1186,6 +1202,12 @@ type JoinReq2 struct {
 	RandomStr string `json:"RandomStr" binding:"required"`
 	Sign1     string `json:"Sign1" binding:"required"`
 	Sign2     string `json:"Sign2" binding:"required"`
+	R string `json:"R" binding:"required"`
+}
+
+type BeatReq struct {
+	PublicKey string `json:"PublicKey" binding:"required"`
+	RandomStr string `json:"RandomStr" binding:"required"`
 }
 
 func JoinPoS() bool {
@@ -1197,6 +1219,7 @@ func JoinPoS() bool {
 		RandomStr: randstr,
 		Sign1:     sign1,
 		Sign2:     sign2,
+		R: global.Randomstr,
 	}
 	m, _ := json.Marshal(joinreq)
 	url1:= "join2"
@@ -1225,9 +1248,9 @@ func JoinPoS() bool {
 			fmt.Println()
 			fmt.Println("=============********************************************************************************=============")
 			if global.Senior.Load() {
-				fmt.Println("【PoS failed】. Your account balance is not enough to join senior shard. Program will exit after 10 seconds.")
+				fmt.Println("【Stake failed】. Your account balance is not enough to join senior shard. Program will exit after 10 seconds.")
 			}else {
-				fmt.Println("【PoS failed】. Your account balance is not enough to join junior shard. Program will exit after 10 seconds.")
+				fmt.Println("【Stake failed】. Your account balance is not enough to join junior shard. Program will exit after 10 seconds.")
 			}
 			fmt.Println(string(data))
 			fmt.Println("=============********************************************************************************=============")

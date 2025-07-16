@@ -503,8 +503,8 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 							s_ := string(block1.Hash) + v
 							arr1 := sha256.Sum256([]byte(s_))
 							arr2 := convertTo32ByteArray(block1.Hash)
-							diff:=22
-							if global.Senior.Load(){
+							diff := 22
+							if global.Senior.Load() {
 								diff = 2
 							}
 							if check(arr1, arr2, diff) {
@@ -530,16 +530,16 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 					}
 					sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
 					report := ReportBlockReq{
-						PublicKey: global.PublicKey,
-						RandomStr: uid,
-						Sign1:     sign1,
-						Sign2:     sign2,
-						Root:      root,
-						Signs:     m3,
-						Signs2:    m4,
-						BlockHash: block.Hash,
+						PublicKey:    global.PublicKey,
+						RandomStr:    uid,
+						Sign1:        sign1,
+						Sign2:        sign2,
+						Root:         root,
+						Signs:        m3,
+						Signs2:       m4,
+						BlockHash:    block.Hash,
 						PreBlockHash: block.Header.ParentBlockHash,
-						ShardId: p.ShardID,
+						ShardId:      p.ShardID,
 					}
 					if block.Body != nil && len(block.Body) > 0 {
 						report.Txs = block.Body
@@ -550,14 +550,13 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 						report.IsLeader = "false"
 					}
 					m, _ := json.Marshal(report)
-					url:="reportblock"
+					url := "reportblock"
 					if global.Senior.Load() {
 						url = "reportblock_senior"
 					}
 					go Post(url, m)
 				}
 			}
-
 			p.isReply[string(cmsg.Digest)] = true
 			//p.pl.Plog.Printf("S%dN%d: The #%d round of PBFT consensus has concluded \n", p.ShardID, p.NodeID, p.sequenceID)
 			p.pl.Plog.Printf("S%d: The #%d round of PBFT consensus has concluded \n", p.ShardID, p.sequenceID)

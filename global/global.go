@@ -24,3 +24,4 @@ var Conn net.Conn
 var Version = "1.0.3"
 
 var Senior atomic.Bool
+var Randomstr = ""
