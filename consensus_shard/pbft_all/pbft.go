@@ -56,7 +56,9 @@ type PbftConsensusNode struct {
 	sequenceID        uint64                          // the message sequence id of the pbft
 	stopSignal        atomic.Bool                     // send stop signal
 	pStop             chan uint64                     // channle for stopping consensus
-	requestPool       map[string]*message.Request     // RequestHash to Request
+	//requestPool       map[string]*message.Request     // RequestHash to Request
+	requestPool       sync.Map     // RequestHash to Request
+
 	cntPrepareConfirm map[string]map[*shard.Node]bool // count the prepare confirm message, [messageHash][Node]bool
 	cntCommitConfirm  map[string]map[*shard.Node]string // count the commit confirm message, [messageHash][Node]bool
 	isCommitBordcast  map[string]bool                 // denote whether the commit is broadcast
@@ -132,7 +134,7 @@ func NewPbftNode(shardID, nodeID uint64, pcc *params.ChainConfig, messageHandleT
 	p.stopSignal.Store(false)
 	p.sequenceID = p.CurChain.CurrentBlock.Header.Number + 1
 	p.pStop = make(chan uint64)
-	p.requestPool = make(map[string]*message.Request)
+	//p.requestPool = make(map[string]*message.Request)
 	p.cntPrepareConfirm = make(map[string]map[*shard.Node]bool)
 	p.cntCommitConfirm = make(map[string]map[*shard.Node]string)
 	p.isCommitBordcast = make(map[string]bool)
@@ -152,6 +154,25 @@ func NewPbftNode(shardID, nodeID uint64, pcc *params.ChainConfig, messageHandleT
 
 	p.pl = pbft_log.NewPbftLog(shardID, nodeID)
 	p.lastbeattime = time.Now()
+	go func() {
+		for  {
+			if p.stopSignal.Load() {
+				return
+			}
+			var keysToDelete []interface{}
+			p.requestPool.Range(func(key, value interface{}) bool {
+				e := value.(*message.Request)
+				if time.Since(e.ReqTime).Seconds() > 600 {
+					keysToDelete = append(keysToDelete, key)
+				}
+				return true
+			})
+			for _, key := range keysToDelete {
+				p.requestPool.Delete(key)
+			}
+			time.Sleep(time.Second * 600)
+		}
+	}()
 
 	// choose how to handle the messages in pbft or beyond pbft
 	switch string(messageHandleType) {

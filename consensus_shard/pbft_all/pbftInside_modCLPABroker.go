@@ -62,7 +62,7 @@ func (cphm *CLPAPbftInsideExtraHandleMod_forBroker) HandleinPrePrepare(ppmsg *me
 		}
 	}
 	//cphm.pbftNode.pl.Plog.Printf("S%dN%d : the pre-prepare message is correct, putting it into the RequestPool. \n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
-	cphm.pbftNode.requestPool[string(ppmsg.Digest)] = ppmsg.RequestMsg
+	cphm.pbftNode.requestPool.Store(string(ppmsg.Digest), ppmsg.RequestMsg)
 	// merge to be a prepare message
 	return true
 }
@@ -75,7 +75,8 @@ func (cphm *CLPAPbftInsideExtraHandleMod_forBroker) HandleinPrepare(pmsg *messag
 
 // the operation in commit.
 func (cphm *CLPAPbftInsideExtraHandleMod_forBroker) HandleinCommit(cmsg *message.Commit) bool {
-	r := cphm.pbftNode.requestPool[string(cmsg.Digest)]
+	r0,_ := cphm.pbftNode.requestPool.Load(string(cmsg.Digest))
+	r := r0.(*message.Request)
 	// requestType ...
 	if r.RequestType == message.PartitionReq {
 		// if a partition Requst ...

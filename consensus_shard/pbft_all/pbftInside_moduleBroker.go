@@ -39,7 +39,7 @@ func (rbhm *RawBrokerPbftExtraHandleMod) HandleinPrePrepare(ppmsg *message.PrePr
 		return false
 	}
 	rbhm.pbftNode.pl.Plog.Printf("S%dN%d : the pre-prepare message is correct, putting it into the RequestPool. \n", rbhm.pbftNode.ShardID, rbhm.pbftNode.NodeID)
-	rbhm.pbftNode.requestPool[string(ppmsg.Digest)] = ppmsg.RequestMsg
+	rbhm.pbftNode.requestPool.Store(string(ppmsg.Digest),  ppmsg.RequestMsg)
 	// merge to be a prepare message
 	return true
 }
@@ -52,7 +52,8 @@ func (rbhm *RawBrokerPbftExtraHandleMod) HandleinPrepare(pmsg *message.Prepare) 
 
 // the operation in commit.
 func (rbhm *RawBrokerPbftExtraHandleMod) HandleinCommit(cmsg *message.Commit) bool {
-	r := rbhm.pbftNode.requestPool[string(cmsg.Digest)]
+	r0,_ := rbhm.pbftNode.requestPool.Load(string(cmsg.Digest))
+	r := r0.(*message.Request)
 	// requestType ...
 	block := core.DecodeB(r.Msg.Content)
 	rbhm.pbftNode.pl.Plog.Printf("S%dN%d : adding the block %d...now height = %d \n", rbhm.pbftNode.ShardID, rbhm.pbftNode.NodeID, block.Header.Number, rbhm.pbftNode.CurChain.CurrentBlock.Header.Number)

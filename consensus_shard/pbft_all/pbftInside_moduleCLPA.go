@@ -50,7 +50,7 @@ func (cphm *CLPAPbftInsideExtraHandleMod) HandleinPrePrepare(ppmsg *message.PreP
 	}
 	//cphm.pbftNode.pl.Plog.Printf("S%dN%d : the pre-prepare message is correct, putting it into the RequestPool. \n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
 	//cphm.pbftNode.pl.Plog.Printf("S%d : the pre-prepare message is correct, putting it into the RequestPool. \n", cphm.pbftNode.ShardID)
-	cphm.pbftNode.requestPool[string(ppmsg.Digest)] = ppmsg.RequestMsg
+	cphm.pbftNode.requestPool.Store(string(ppmsg.Digest),  ppmsg.RequestMsg)
 	// merge to be a prepare message
 	return true
 }
@@ -63,7 +63,8 @@ func (cphm *CLPAPbftInsideExtraHandleMod) HandleinPrepare(pmsg *message.Prepare)
 
 // the operation in commit.
 func (cphm *CLPAPbftInsideExtraHandleMod) HandleinCommit(cmsg *message.Commit) bool {
-	r := cphm.pbftNode.requestPool[string(cmsg.Digest)]
+	r0,_ := cphm.pbftNode.requestPool.Load(string(cmsg.Digest))
+	r := r0.(*message.Request)
 	if r.RequestType == message.PartitionReq {
 		atm := message.DecodeMsg(r.Msg.Content)
 		cphm.accountTransfer_do2(atm)

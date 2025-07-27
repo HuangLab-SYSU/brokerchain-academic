@@ -159,7 +159,7 @@ func (p *PbftConsensusNode) Propose() {
 				_, r := p.ihm.HandleinPropose()
 
 				digest := getDigest(r)
-				p.requestPool[string(digest)] = r
+				p.requestPool.Store(string(digest), r)
 				//p.pl.Plog.Printf("S%dN%d put the request into the pool ...\n", p.ShardID, p.NodeID)
 				//p.pl.Plog.Printf("S%d put the request into the pool ...\n", p.ShardID)
 
@@ -231,7 +231,7 @@ func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
 		//p.pl.Plog.Printf("S%dN%d : the digest is not consistent, so refuse to prepare. \n", p.ShardID, p.NodeID)
 		//p.pl.Plog.Printf("S%d : the digest is not consistent, so refuse to prepare. \n", p.ShardID)
 	} else if p.sequenceID < ppmsg.SeqID {
-		p.requestPool[string(getDigest(ppmsg.RequestMsg))] = ppmsg.RequestMsg
+		p.requestPool.Store(string(getDigest(ppmsg.RequestMsg)),  ppmsg.RequestMsg)
 		p.height2Digest[ppmsg.SeqID] = string(getDigest(ppmsg.RequestMsg))
 		//p.askForLock.Lock()
 		// request the block
@@ -260,7 +260,7 @@ func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
 	} else {
 		// do your operation in this interface
 		flag = p.ihm.HandleinPrePrepare(ppmsg)
-		p.requestPool[string(getDigest(ppmsg.RequestMsg))] = ppmsg.RequestMsg
+		p.requestPool.Store(string(getDigest(ppmsg.RequestMsg)),  ppmsg.RequestMsg)
 		p.height2Digest[ppmsg.SeqID] = string(getDigest(ppmsg.RequestMsg))
 	}
 	flag = true
@@ -359,7 +359,7 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 		return
 	}
 
-	if _, ok := p.requestPool[string(pmsg.Digest)]; !ok {
+	if _, ok := p.requestPool.Load(string(pmsg.Digest)); !ok {
 		//p.pl.Plog.Printf("S%dN%d : doesn't have the digest in the requst pool, refuse to commit\n", p.ShardID, p.NodeID)
 		//p.pl.Plog.Printf("S%d : doesn't have the digest in the requst pool, refuse to commit\n", p.ShardID)
 		return
@@ -402,7 +402,8 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 			//p.pl.Plog.Printf("S%dN%d : is going to commit\n", p.ShardID, p.NodeID)
 			//p.pl.Plog.Printf("S%d : is going to commit\n", p.ShardID)
 
-			request, _ := p.requestPool[string(pmsg.Digest)]
+			request0, _ := p.requestPool.Load(string(pmsg.Digest))
+			request := request0.(*message.Request)
 			answer := ""
 			if request.RequestType != message.PartitionReq {
 
@@ -540,7 +541,7 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 		//p.pl.Plog.Printf("S%dN%d : has received 2f + 1 commits ... \n", p.ShardID, p.NodeID)
 		//p.pl.Plog.Printf("S%d : has received 2f + 1 commits ... \n", p.ShardID)
 		// if this node is left behind, so it need to requst blocks
-		if _, ok := p.requestPool[string(cmsg.Digest)]; !ok {
+		if _, ok := p.requestPool.Load(string(cmsg.Digest)); !ok {
 			p.isReply[string(cmsg.Digest)] = true
 			//p.askForLock.Lock()
 			// request the block
@@ -571,7 +572,8 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 			p.ihm.HandleinCommit(cmsg)
 
 			if uint64(p.view.Load()) == p.NodeID {
-				request := p.requestPool[string(cmsg.Digest)]
+				request0,_ := p.requestPool.Load(string(cmsg.Digest))
+				request := request0.(*message.Request)
 				m3 := make([]string, 0)
 				m4 := make([]string, 0)
 				//m2 := p.cntCommitConfirm[string(cmsg.Digest)]
@@ -614,7 +616,8 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 				root := hex.EncodeToString(p.CurChain.CurrentBlock.Header.StateRoot)
 				uid := uuid.New().String()
 
-				r := p.requestPool[string(cmsg.Digest)]
+				r0,_ := p.requestPool.Load(string(cmsg.Digest))
+				r := r0.(*message.Request)
 				if r.RequestType != message.PartitionReq {
 					block := core.DecodeB(r.Msg.Content)
 					thedata := uid + root
@@ -752,10 +755,11 @@ func (p *PbftConsensusNode) handleRequestOldSeq(content []byte) {
 			p.pl.Plog.Printf("S%dN%d : has no this digest to this height %d\n", p.ShardID, p.NodeID, height)
 			break
 		}
-		if r, ok := p.requestPool[p.height2Digest[height]]; !ok {
+		if r0, ok := p.requestPool.Load(p.height2Digest[height]); !ok {
 			p.pl.Plog.Printf("S%dN%d : has no this message to this digest %d\n", p.ShardID, p.NodeID, height)
 			break
 		} else {
+			r := (r0).(*message.Request)
 			oldR = append(oldR, r)
 		}
 	}
@@ -797,14 +801,15 @@ func (p *PbftConsensusNode) handleSendOldSeq(content []byte) {
 	p.ihm.HandleforSequentialRequest(som)
 	beginSeq := som.SeqStartHeight
 	for idx, r := range som.OldRequest {
-		p.requestPool[string(getDigest(r))] = r
+		p.requestPool.Store(string(getDigest(r)), r)
 		p.height2Digest[uint64(idx)+beginSeq] = string(getDigest(r))
 		p.isReply[string(getDigest(r))] = true
 		p.pl.Plog.Printf("this round of pbft %d is end \n", uint64(idx)+beginSeq)
 	}
 	p.sequenceID = som.SeqEndHeight + 1
 	if rDigest, ok1 := p.height2Digest[p.sequenceID]; ok1 {
-		if r, ok2 := p.requestPool[rDigest]; ok2 {
+		if r1, ok2 := p.requestPool.Load(rDigest); ok2 {
+			r := r1.(*message.Request)
 			ppmsg := &message.PrePrepare{
 				RequestMsg: r,
 				SeqID:      p.sequenceID,

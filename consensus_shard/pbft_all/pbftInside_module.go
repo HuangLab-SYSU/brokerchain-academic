@@ -38,7 +38,7 @@ func (rphm *RawRelayPbftExtraHandleMod) HandleinPrePrepare(ppmsg *message.PrePre
 	}
 	rphm.pbftNode.pl.Plog.Printf("S%d : the pre-prepare message is correct, putting it into the RequestPool. \n", rphm.pbftNode.ShardID)
 	//rphm.pbftNode.pl.Plog.Printf("S%dN%d : the pre-prepare message is correct, putting it into the RequestPool. \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID)
-	rphm.pbftNode.requestPool[string(ppmsg.Digest)] = ppmsg.RequestMsg
+	rphm.pbftNode.requestPool.Store(string(ppmsg.Digest), ppmsg.RequestMsg)
 	// merge to be a prepare message
 	return true
 }
@@ -51,7 +51,8 @@ func (rphm *RawRelayPbftExtraHandleMod) HandleinPrepare(pmsg *message.Prepare) b
 
 // the operation in commit.
 func (rphm *RawRelayPbftExtraHandleMod) HandleinCommit(cmsg *message.Commit) bool {
-	r := rphm.pbftNode.requestPool[string(cmsg.Digest)]
+	r0, _ := rphm.pbftNode.requestPool.Load(string(cmsg.Digest))
+	r := r0.(*message.Request)
 	// requestType ...
 	block := core.DecodeB(r.Msg.Content)
 	//rphm.pbftNode.pl.Plog.Printf("S%dN%d : adding the block %d...now height = %d \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID, block.Header.Number, rphm.pbftNode.CurChain.CurrentBlock.Header.Number)
