@@ -1096,9 +1096,8 @@ func main() {
 				for  {
 					da, err := Post2("beat", m)
 					if err != nil {
-						fmt.Println("Sending the beat failed: " + err.Error())
-					}
-					if !strings.Contains(string(da), "success") {
+						fmt.Println("Sending the beat failed, please check your network: " + err.Error())
+					} else if !strings.Contains(string(da), "success") {
 						fmt.Println("Sending the beat successfully, but returns error: " + string(da))
 					}
 					time.Sleep(5 * time.Second)

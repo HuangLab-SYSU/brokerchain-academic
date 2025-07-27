@@ -75,7 +75,8 @@ func (cphm *CLPAPbftInsideExtraHandleMod) HandleinCommit(cmsg *message.Commit) b
 	//cphm.pbftNode.pl.Plog.Printf("S%d : adding the block %d...now height = %d \n", cphm.pbftNode.ShardID, block.Header.Number, cphm.pbftNode.CurChain.CurrentBlock.Header.Number)
 	cphm.pbftNode.CurChain.AddBlock(block)
 	//cphm.pbftNode.pl.Plog.Printf("S%dN%d : added the block %d... \n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID, block.Header.Number)
-	cphm.pbftNode.pl.Plog.Printf("S%d : added the block %d... \n", cphm.pbftNode.ShardID, block.Header.Number)
+	//cphm.pbftNode.pl.Plog.Printf("S%d : added the block %d... \n", cphm.pbftNode.ShardID, block.Header.Number)
+	cphm.pbftNode.pl.Plog.Printf("S%d : Have added the block... \n", cphm.pbftNode.ShardID)
 	//cphm.pbftNode.CurChain.PrintBlockChain()
 
 	// now try to relay txs to other shards (for main nodes)
@@ -182,7 +183,7 @@ func (cphm *CLPAPbftInsideExtraHandleMod) HandleforSequentialRequest(som *messag
 			}
 		}
 		cphm.pbftNode.sequenceID = som.SeqEndHeight + 1
-		cphm.pbftNode.CurChain.PrintBlockChain()
+		//cphm.pbftNode.CurChain.PrintBlockChain()
 	}
 	return true
 }

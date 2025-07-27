@@ -40,7 +40,7 @@ func (p *PbftConsensusNode) viewChangePropose() {
 	networks.Broadcast(p.RunningNode.IPaddr, p.getNeighborNodes(), msg_send)
 	networks.TcpDial(msg_send, p.RunningNode.IPaddr)
 
-	p.pl.Plog.Println("View change message is broadcasted. ")
+	//p.pl.Plog.Println("View change message is broadcasted. ")
 }
 
 // handle view change messages.

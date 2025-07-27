@@ -149,6 +149,7 @@ func (p *PbftConsensusNode) Propose() {
 					return
 				}
 
+
 				p.sequenceLock.Lock()
 				p.sequenceLockFlag.Store(true)
 				//p.pl.Plog.Printf("S%dN%d get sequenceLock locked, now trying to propose...\n", p.ShardID, p.NodeID)
@@ -662,6 +663,7 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 		p.lastCommitTime.Store(time.Now().UnixMilli())
 
 		// if this node is a main node, then unlock the sequencelock
+		//if p.NodeID == uint64(p.view.Load()) && p.sequenceLockFlag.Load(){
 		if p.NodeID == uint64(p.view.Load()) && p.sequenceLockFlag.Load(){
 			p.sequenceLock.Unlock()
 			p.sequenceLockFlag.Store(false)
@@ -789,7 +791,7 @@ func (p *PbftConsensusNode) handleSendOldSeq(content []byte) {
 	if err != nil {
 		log.Panic()
 	}
-	p.pl.Plog.Printf("S%dN%d : has received the SendOldMessage message\n", p.ShardID, p.NodeID)
+	p.pl.Plog.Printf("S%d : has received the SendOldMessage message\n", p.ShardID, )
 
 	// implement interface for new consensus
 	p.ihm.HandleforSequentialRequest(som)
