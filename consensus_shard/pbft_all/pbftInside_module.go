@@ -32,7 +32,7 @@ func (rphm *RawRelayPbftExtraHandleMod) HandleinPropose() (bool, *message.Reques
 // the DIY operation in preprepare
 func (rphm *RawRelayPbftExtraHandleMod) HandleinPrePrepare(ppmsg *message.PrePrepare) bool {
 	if rphm.pbftNode.CurChain.IsValidBlock(core.DecodeB(ppmsg.RequestMsg.Msg.Content)) != nil {
-		rphm.pbftNode.pl.Plog.Printf("S%d : not a valid block\n", rphm.pbftNode.ShardID)
+		//rphm.pbftNode.pl.Plog.Printf("S%d : not a valid block\n", rphm.pbftNode.ShardID)
 		//rphm.pbftNode.pl.Plog.Printf("S%dN%d : not a valid block\n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID)
 		return false
 	}
@@ -55,7 +55,8 @@ func (rphm *RawRelayPbftExtraHandleMod) HandleinCommit(cmsg *message.Commit) boo
 	// requestType ...
 	block := core.DecodeB(r.Msg.Content)
 	//rphm.pbftNode.pl.Plog.Printf("S%dN%d : adding the block %d...now height = %d \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID, block.Header.Number, rphm.pbftNode.CurChain.CurrentBlock.Header.Number)
-	rphm.pbftNode.pl.Plog.Printf("S%d : adding the block %d...now height = %d \n", rphm.pbftNode.ShardID, block.Header.Number, rphm.pbftNode.CurChain.CurrentBlock.Header.Number)
+	//rphm.pbftNode.pl.Plog.Printf("S%d : adding the block %d...now height = %d \n", rphm.pbftNode.ShardID, block.Header.Number, rphm.pbftNode.CurChain.CurrentBlock.Header.Number)
+	rphm.pbftNode.pl.Plog.Printf("S%d : adding the block %d... \n", rphm.pbftNode.ShardID, block.Header.Number)
 	rphm.pbftNode.CurChain.AddBlock(block)
 	rphm.pbftNode.pl.Plog.Printf("S%d : added the block %d... \n", rphm.pbftNode.ShardID, block.Header.Number)
 	//rphm.pbftNode.pl.Plog.Printf("S%dN%d : added the block %d... \n", rphm.pbftNode.ShardID, rphm.pbftNode.NodeID, block.Header.Number)

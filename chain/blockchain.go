@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"log"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -162,7 +163,7 @@ func (bc *BlockChain) GetUpdateStatusTrie(txs []*core.Transaction) common.Hash {
 			log.Panic(err)
 		}
 	}
-	fmt.Println("modified account number is ", cnt)
+	//fmt.Println("modified account number is ", cnt)
 	return rt
 }
 
@@ -233,26 +234,26 @@ func (bc *BlockChain) AddGenisisBlock(gb *core.Block) {
 // add a block
 func (bc *BlockChain) AddBlock(b *core.Block) {
 	if b.Header.Number != bc.CurrentBlock.Header.Number+1 {
-		fmt.Println("the block height is not correct")
+		//fmt.Println("the block height is not correct")
 		return
 	}
 
 	if !bytes.Equal(b.Header.ParentBlockHash, bc.CurrentBlock.Hash) {
-		fmt.Println("err parent block hash")
+		//fmt.Println("err parent block hash")
 		return
 	}
 
 	// if the treeRoot is existed in the node, the transactions is no need to be handled again
 	_, err := trie.New(trie.TrieID(common.BytesToHash(b.Header.StateRoot)), bc.Triedb)
 	if err != nil {
-		rt := bc.GetUpdateStatusTrie(b.Body)
-		fmt.Println(bc.CurrentBlock.Header.Number+1, "the root = ", rt.Bytes())
+		_ = bc.GetUpdateStatusTrie(b.Body)
+		//fmt.Println(bc.CurrentBlock.Header.Number+1, "the root = ", rt.Bytes())
 	}
 	bc.CurrentBlock = b
 	bc.Storage.AddBlock(b)
 }
 func NewBlockChain2(cc *params.ChainConfig, db ethdb.Database, r string) (*BlockChain, error) {
-	fmt.Println("Generating a new blockchain", db)
+	PrintLog("Generating a new blockchain")
 	chainDBfp := params.DatabaseWrite_path + "chainDB/"+ r
 
 	bc := &BlockChain{
@@ -264,13 +265,13 @@ func NewBlockChain2(cc *params.ChainConfig, db ethdb.Database, r string) (*Block
 	}
 	curHash, err := bc.Storage.GetNewestBlockHash()
 	if err != nil {
-		fmt.Println("There is no existed blockchain in the database. ")
+		PrintLog("There is no existed blockchain in the database. ")
 		// if the Storage bolt database cannot find the newest blockhash,
 		// it means the blockchain should be built in height = 0
 		if err.Error() == "cannot find the newest block hash" {
 			genisisBlock := bc.NewGenisisBlock()
 			bc.AddGenisisBlock(genisisBlock)
-			fmt.Println("New genesis block")
+			PrintLog("New genesis block")
 			return bc, nil
 		}
 		log.Panic()
@@ -294,14 +295,14 @@ func NewBlockChain2(cc *params.ChainConfig, db ethdb.Database, r string) (*Block
 	if err != nil {
 		log.Panic()
 	}
-	fmt.Println("The status trie can be built")
-	fmt.Println("Generated a new blockchain successfully")
+	PrintLog("The status trie can be built")
+	PrintLog("Generated a new blockchain successfully")
 	return bc, nil
 }
 // new a blockchain.
 // the ChainConfig is pre-defined to identify the blockchain; the Db is the status trie database in disk
 func NewBlockChain(cc *params.ChainConfig, db ethdb.Database) (*BlockChain, error) {
-	fmt.Println("Generating a new blockchain", db)
+	PrintLog("Generating a new blockchain")
 	//chainDBfp := params.DatabaseWrite_path + fmt.Sprintf("chainDB/S%d_N%d", cc.ShardID, cc.NodeID)
 	chainDBfp := params.DatabaseWrite_path + "chainDB/"+ uuid.New().String()
 
@@ -325,13 +326,13 @@ func NewBlockChain(cc *params.ChainConfig, db ethdb.Database) (*BlockChain, erro
 	}
 	curHash, err := bc.Storage.GetNewestBlockHash()
 	if err != nil {
-		fmt.Println("There is no existed blockchain in the database. ")
+		PrintLog("There is no existed blockchain in the database. ")
 		// if the Storage bolt database cannot find the newest blockhash,
 		// it means the blockchain should be built in height = 0
 		if err.Error() == "cannot find the newest block hash" {
 			genisisBlock := bc.NewGenisisBlock()
 			bc.AddGenisisBlock(genisisBlock)
-			fmt.Println("New genesis block")
+			PrintLog("New genesis block")
 			return bc, nil
 		}
 		log.Panic()
@@ -359,15 +360,21 @@ func NewBlockChain(cc *params.ChainConfig, db ethdb.Database) (*BlockChain, erro
 	fmt.Println("Generated a new blockchain successfully")
 	return bc, nil
 }
-
+func PrintLog(format string, v ...interface{}) {
+	timestamp := time.Now().Format("2006/01/02 15:04:05.000")
+	msg := fmt.Sprintf(format, v...)
+	parts := strings.Split(timestamp, ".")
+	millis := parts[1]
+	log.Printf("%s   %s", millis, msg)
+}
 // check a block is valid or not in this blockchain config
 func (bc *BlockChain) IsValidBlock(b *core.Block) error {
 	//return nil
 	if string(b.Header.ParentBlockHash) != string(bc.CurrentBlock.Hash) {
-		fmt.Println("the parentblock hash is not equal to the current block hash")
+		//fmt.Println("the parentblock hash is not equal to the current block hash")
 		return errors.New("the parentblock hash is not equal to the current block hash")
 	} else if string(GetTxTreeRoot(b.Body)) != string(b.Header.TxRoot) {
-		fmt.Println("the transaction root is wrong")
+		//fmt.Println("the transaction root is wrong")
 		return errors.New("the transaction root is wrong")
 	}
 	return nil

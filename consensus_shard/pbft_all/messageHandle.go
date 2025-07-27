@@ -78,19 +78,41 @@ func (p *PbftConsensusNode) Propose() {
 			time.Sleep(time.Second)
 			if time.Now().UnixMilli()-p.lastCommitTime2.Load() > int64(params.PbftStopShardTimeout) {
 				go func() {
+					defer func() {
+						if err := recover(); err != nil {
+							fmt.Println(err)
+						}
+					}()
 					p.pStop <- 1
 				}()
-				p.stopSignal.Store(true)
-				if global.Conn != nil {
-					global.Conn.Close()
-				}
 				go func() {
 					defer func() {
 						if err := recover(); err != nil {
 							fmt.Println(err)
 						}
 					}()
-					p.tcpln.Close()
+					p.stopSignal.Store(true)
+				}()
+				go func() {
+					defer func() {
+						if err := recover(); err != nil {
+							fmt.Println(err)
+						}
+					}()
+					if global.Conn != nil {
+						global.Conn.Close()
+					}
+				}()
+
+				go func() {
+					defer func() {
+						if err := recover(); err != nil {
+							fmt.Println(err)
+						}
+					}()
+					if p.tcpln != nil {
+						p.tcpln.Close()
+					}
 				}()
 				go func() {
 					defer func() {
@@ -128,8 +150,9 @@ func (p *PbftConsensusNode) Propose() {
 				}
 
 				p.sequenceLock.Lock()
+				p.sequenceLockFlag.Store(true)
 				//p.pl.Plog.Printf("S%dN%d get sequenceLock locked, now trying to propose...\n", p.ShardID, p.NodeID)
-				p.pl.Plog.Printf("S%d get sequenceLock locked, now trying to propose...\n", p.ShardID)
+				//p.pl.Plog.Printf("S%d get sequenceLock locked, now trying to propose...\n", p.ShardID)
 				// propose
 				// implement interface to generate propose
 				_, r := p.ihm.HandleinPropose()
@@ -137,7 +160,7 @@ func (p *PbftConsensusNode) Propose() {
 				digest := getDigest(r)
 				p.requestPool[string(digest)] = r
 				//p.pl.Plog.Printf("S%dN%d put the request into the pool ...\n", p.ShardID, p.NodeID)
-				p.pl.Plog.Printf("S%d put the request into the pool ...\n", p.ShardID)
+				//p.pl.Plog.Printf("S%d put the request into the pool ...\n", p.ShardID)
 
 				ppmsg := message.PrePrepare{
 					RequestMsg: r,
@@ -161,7 +184,8 @@ func (p *PbftConsensusNode) Propose() {
 
 		case <-p.pStop:
 			//p.pl.Plog.Printf("S%dN%d get stopSignal in Propose Routine, now stop...\n", p.ShardID, p.NodeID)
-			p.pl.Plog.Printf("S%d get stopSignal in Propose Routine, now stop...\n", p.ShardID)
+			//p.pl.Plog.Printf("S%d get stopSignal in Propose Routine, now stop...\n", p.ShardID)
+			p.pl.Plog.Printf("Entering into a new shard...\n")
 			return
 		}
 	}
@@ -171,13 +195,15 @@ func (p *PbftConsensusNode) Propose() {
 // If you want to do more operations in the pre-prepare stage, you can implement the interface "ExtraOpInConsensus",
 // and call the function: **ExtraOpInConsensus.HandleinPrePrepare**
 func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
-	p.RunningNode.PrintNode()
-	fmt.Println("received the PrePrepare ...")
+	//p.RunningNode.PrintNode()
+	//fmt.Println("received the PrePrepare ...")
 	// decode the message
 	ppmsg := new(message.PrePrepare)
 	err := json.Unmarshal(content, ppmsg)
 	if err != nil {
-		log.Panic(err)
+		//log.Panic(err)
+		fmt.Println(err)
+		return
 	}
 
 	curView := p.view.Load()
@@ -185,6 +211,9 @@ func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
 	defer p.pbftLock.Unlock()
 	for p.pbftStage.Load() < 1 && ppmsg.SeqID >= p.sequenceID && p.view.Load() == curView {
 		p.conditionalVarpbftLock.Wait()
+		if p.stopSignal.Load() {
+			return
+		}
 	}
 	defer p.conditionalVarpbftLock.Broadcast()
 
@@ -199,19 +228,41 @@ func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
 	flag := false
 	if digest := getDigest(ppmsg.RequestMsg); string(digest) != string(ppmsg.Digest) {
 		//p.pl.Plog.Printf("S%dN%d : the digest is not consistent, so refuse to prepare. \n", p.ShardID, p.NodeID)
-		p.pl.Plog.Printf("S%d : the digest is not consistent, so refuse to prepare. \n", p.ShardID)
+		//p.pl.Plog.Printf("S%d : the digest is not consistent, so refuse to prepare. \n", p.ShardID)
 	} else if p.sequenceID < ppmsg.SeqID {
 		p.requestPool[string(getDigest(ppmsg.RequestMsg))] = ppmsg.RequestMsg
 		p.height2Digest[ppmsg.SeqID] = string(getDigest(ppmsg.RequestMsg))
-		fmt.Println("ppmsg.SeqID:", ppmsg.SeqID)
+		//p.askForLock.Lock()
+		// request the block
+		sn := &shard.Node{
+			NodeID:  uint64(p.view.Load()),
+			ShardID: p.ShardID,
+			IPaddr:  p.ip_nodeTable[p.ShardID][uint64(p.view.Load())],
+		}
+		orequest := message.RequestOldMessage{
+			SeqStartHeight: p.sequenceID + 1,
+			SeqEndHeight:   ppmsg.SeqID,
+			ServerNode:     sn,
+			SenderNode:     p.RunningNode,
+		}
+		bromyte, err := json.Marshal(orequest)
+		if err != nil {
+			log.Panic()
+		}
+
+		//p.pl.Plog.Printf("S%dN%d : is now requesting message (seq %d to %d) ... \n", p.ShardID, p.NodeID, orequest.SeqStartHeight, orequest.SeqEndHeight)
+		msg_send := message.MergeMessage(message.CRequestOldrequest, bromyte)
+		networks.TcpDial(msg_send, orequest.ServerNode.IPaddr)
+		//fmt.Println("ppmsg.SeqID:", ppmsg.SeqID)
 		//p.pl.Plog.Printf("S%dN%d : the Sequence id is not consistent, so refuse to prepare. \n", p.ShardID, p.NodeID)
-		p.pl.Plog.Printf("S%d : the Sequence id is not consistent, so refuse to prepare. \n", p.ShardID)
+		//p.pl.Plog.Printf("S%d : the Sequence id is not consistent, so refuse to prepare. \n", p.ShardID)
 	} else {
 		// do your operation in this interface
 		flag = p.ihm.HandleinPrePrepare(ppmsg)
 		p.requestPool[string(getDigest(ppmsg.RequestMsg))] = ppmsg.RequestMsg
 		p.height2Digest[ppmsg.SeqID] = string(getDigest(ppmsg.RequestMsg))
 	}
+	flag = true
 	// if the message is true, broadcast the prepare message
 	if flag {
 		pre := message.Prepare{
@@ -231,7 +282,7 @@ func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
 		networks.Broadcast(p.RunningNode.IPaddr, p.getNeighborNodes(), msg_send)
 		networks.TcpDial(msg_send, p.RunningNode.IPaddr)
 		//p.pl.Plog.Printf("S%dN%d : has broadcast the prepare message \n", p.ShardID, p.NodeID)
-		p.pl.Plog.Printf("S%d : has broadcast the prepare message \n", p.ShardID)
+		//p.pl.Plog.Printf("S%d : has broadcast the prepare message \n", p.ShardID)
 
 		// Pbft stage add 1. It means that this round of pbft goes into the next stage, i.e., Prepare stage.
 		p.pbftStage.Add(1)
@@ -282,16 +333,21 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 	pmsg := new(message.Prepare)
 	err := json.Unmarshal(content, pmsg)
 	if err != nil {
-		log.Panic(err)
+		//log.Panic(err)
+		fmt.Println(err)
+		return
 	}
 	//p.pl.Plog.Printf("S%dN%d : received the Prepare from N%d...\n", p.ShardID, p.NodeID,pmsg.SenderNode.NodeID)
-	p.pl.Plog.Printf("S%d : received the Prepare from N%d...\n", p.ShardID, pmsg.SenderNode.NodeID)
+	//p.pl.Plog.Printf("S%d : received the Prepare from N%d...\n", p.ShardID, pmsg.SenderNode.NodeID)
 
 	curView := p.view.Load()
 	p.pbftLock.Lock()
 	defer p.pbftLock.Unlock()
 	for p.pbftStage.Load() < 2 && pmsg.SeqID >= p.sequenceID && p.view.Load() == curView {
 		p.conditionalVarpbftLock.Wait()
+		if p.stopSignal.Load() {
+			return
+		}
 	}
 	defer p.conditionalVarpbftLock.Broadcast()
 	if p.stopSignal.Load() {
@@ -304,13 +360,36 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 
 	if _, ok := p.requestPool[string(pmsg.Digest)]; !ok {
 		//p.pl.Plog.Printf("S%dN%d : doesn't have the digest in the requst pool, refuse to commit\n", p.ShardID, p.NodeID)
-		p.pl.Plog.Printf("S%d : doesn't have the digest in the requst pool, refuse to commit\n", p.ShardID)
+		//p.pl.Plog.Printf("S%d : doesn't have the digest in the requst pool, refuse to commit\n", p.ShardID)
+		return
 	} else if p.sequenceID < pmsg.SeqID {
 		//p.pl.Plog.Printf("S%dN%d : inconsistent sequence ID, refuse to commit\n", p.ShardID, p.NodeID)
-		p.pl.Plog.Printf("S%d : inconsistent sequence ID, refuse to commit\n", p.ShardID, )
-	} else {
+		//p.pl.Plog.Printf("S%d : inconsistent sequence ID, refuse to commit\n", p.ShardID, )
+		//p.askForLock.Lock()
+		// request the block
+		sn := &shard.Node{
+			NodeID:  uint64(p.view.Load()),
+			ShardID: p.ShardID,
+			IPaddr:  p.ip_nodeTable[p.ShardID][uint64(p.view.Load())],
+		}
+		orequest := message.RequestOldMessage{
+			SeqStartHeight: p.sequenceID + 1,
+			SeqEndHeight:   pmsg.SeqID,
+			ServerNode:     sn,
+			SenderNode:     p.RunningNode,
+		}
+		bromyte, err := json.Marshal(orequest)
+		if err != nil {
+			log.Panic()
+		}
+
+		//p.pl.Plog.Printf("S%dN%d : is now requesting message (seq %d to %d) ... \n", p.ShardID, p.NodeID, orequest.SeqStartHeight, orequest.SeqEndHeight)
+		msg_send := message.MergeMessage(message.CRequestOldrequest, bromyte)
+		networks.TcpDial(msg_send, orequest.ServerNode.IPaddr)
+	}
+	//else {
 		// if needed more operations, implement interfaces
-		p.ihm.HandleinPrepare(pmsg)
+		//p.ihm.HandleinPrepare(pmsg)
 
 		p.set2DMap(true, string(pmsg.Digest), pmsg.SenderNode)
 		cnt := len(p.cntPrepareConfirm[string(pmsg.Digest)])
@@ -320,7 +399,7 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 		defer p.lock.Unlock()
 		if uint64(cnt) >= 2*p.malicious_nums+1 && !p.isCommitBordcast[string(pmsg.Digest)] {
 			//p.pl.Plog.Printf("S%dN%d : is going to commit\n", p.ShardID, p.NodeID)
-			p.pl.Plog.Printf("S%d : is going to commit\n", p.ShardID)
+			//p.pl.Plog.Printf("S%d : is going to commit\n", p.ShardID)
 
 			request, _ := p.requestPool[string(pmsg.Digest)]
 			answer := ""
@@ -328,60 +407,63 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 
 				block := core.DecodeB(request.Msg.Content)
 
-				for {
-					answer1 := ""
-					uid := uuid.New().String()
-					resultChan := make(chan int, 1)
-					doneChan := make(chan bool, 1)
-					var wg sync.WaitGroup
-					maxRange := 1000000000
-					workers := runtime.NumCPU()
+				if !global.Senior.Load(){
+					for {
+						answer1 := ""
+						uid := uuid.New().String()
+						resultChan := make(chan int, 1)
+						doneChan := make(chan bool, 1)
+						var wg sync.WaitGroup
+						maxRange := 1000000000
+						workers := runtime.NumCPU()
 
-					problem := string(block.Hash)
-					blockhash_ := block.Hash
-					blockhash := convertTo32ByteArray(blockhash_)
-					if workers > 16 {
-						workers = 16
-					}
-					if workers < 1 {
-						workers = 1
-					}
-					//workers = 1
-					wg.Add(workers)
-					perWorker := maxRange / workers
-					flag := atomic.Bool{}
-					for i := 0; i < workers; i++ {
-						start := i * perWorker
-						end := (i + 1) * perWorker
-						if i == workers-1 {
-							end = maxRange
+						problem := string(block.Hash)
+						blockhash_ := block.Hash
+						blockhash := convertTo32ByteArray(blockhash_)
+						if workers > 16 {
+							workers = 16
 						}
-						if global.Senior.Load() {
-							go worker(&wg, start, end, problem, blockhash, 2, resultChan, &flag, uid)
-						}else {
-							go worker(&wg, start, end, problem, blockhash, 22, resultChan, &flag, uid)
+						if workers < 1 {
+							workers = 1
 						}
-					}
+						//workers = 1
+						wg.Add(workers)
+						perWorker := maxRange / workers
+						flag := atomic.Bool{}
+						for i := 0; i < workers; i++ {
+							start := i * perWorker
+							end := (i + 1) * perWorker
+							if i == workers-1 {
+								end = maxRange
+							}
+							if global.Senior.Load() {
+								go worker(&wg, start, end, problem, blockhash, 2, resultChan, &flag, uid)
+							}else {
+								go worker(&wg, start, end, problem, blockhash, 22, resultChan, &flag, uid)
+							}
+						}
 
-					go func() {
-						wg.Wait()
-						doneChan <- true
-						flag.Store(true)
-					}()
-					select {
-					case i := <-resultChan:
-						flag.Store(true)
-						answer1 = strconv.Itoa(i)
-						break
-					case <-doneChan:
-						fmt.Printf("No solution found in range %d\n", maxRange)
-					}
-					if answer1 != "" {
-						answer = uid + answer1
-						fmt.Println("answer is: " + answer)
-						break
+						go func() {
+							wg.Wait()
+							doneChan <- true
+							flag.Store(true)
+						}()
+						select {
+						case i := <-resultChan:
+							flag.Store(true)
+							answer1 = strconv.Itoa(i)
+							break
+						case <-doneChan:
+							//fmt.Printf("No solution found in range %d\n", maxRange)
+						}
+						if answer1 != "" {
+							answer = uid + answer1
+							//fmt.Println("answer is: " + answer)
+							break
+						}
 					}
 				}
+
 			}
 			// generate commit and broadcast
 			c := message.Commit{
@@ -402,11 +484,11 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 			networks.TcpDial(msg_send, p.RunningNode.IPaddr)
 			p.isCommitBordcast[string(pmsg.Digest)] = true
 			//p.pl.Plog.Printf("S%dN%d : commit is broadcast\n", p.ShardID, p.NodeID)
-			p.pl.Plog.Printf("S%d : commit is broadcast\n", p.ShardID)
+			//p.pl.Plog.Printf("S%d : commit is broadcast\n", p.ShardID)
 
 			p.pbftStage.Add(1)
 		}
-	}
+	//}
 }
 
 // Handle commit messages here.
@@ -417,16 +499,21 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 	cmsg := new(message.Commit)
 	err := json.Unmarshal(content, cmsg)
 	if err != nil {
-		log.Panic(err)
+		//log.Panic(err)
+		fmt.Println(err)
+		return
 	}
 	//p.pl.Plog.Printf("S%dN%d received the Commit from ...%d\n", p.ShardID, p.NodeID, cmsg.SenderNode.NodeID)
-	p.pl.Plog.Printf("S%d received the Commit from ...%d\n", p.ShardID, cmsg.SenderNode.NodeID)
+	//p.pl.Plog.Printf("S%d received the Commit from ...%d\n", p.ShardID, cmsg.SenderNode.NodeID)
 
 	curView := p.view.Load()
 	p.pbftLock.Lock()
 	defer p.pbftLock.Unlock()
 	for p.pbftStage.Load() < 3 && cmsg.SeqID >= p.sequenceID && p.view.Load() == curView {
 		p.conditionalVarpbftLock.Wait()
+		if p.stopSignal.Load() {
+			return
+		}
 	}
 	defer p.conditionalVarpbftLock.Broadcast()
 	if p.stopSignal.Load() {
@@ -450,11 +537,11 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 
 	if uint64(cnt) >= 2*p.malicious_nums+1 && !p.isReply[string(cmsg.Digest)] {
 		//p.pl.Plog.Printf("S%dN%d : has received 2f + 1 commits ... \n", p.ShardID, p.NodeID)
-		p.pl.Plog.Printf("S%d : has received 2f + 1 commits ... \n", p.ShardID)
+		//p.pl.Plog.Printf("S%d : has received 2f + 1 commits ... \n", p.ShardID)
 		// if this node is left behind, so it need to requst blocks
 		if _, ok := p.requestPool[string(cmsg.Digest)]; !ok {
 			p.isReply[string(cmsg.Digest)] = true
-			p.askForLock.Lock()
+			//p.askForLock.Lock()
 			// request the block
 			sn := &shard.Node{
 				NodeID:  uint64(p.view.Load()),
@@ -498,23 +585,30 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 					block1 := core.DecodeB(request.Msg.Content)
 					m2 := p.cntCommitConfirm[string(cmsg.Digest)]
 
-					for k, v := range m2 {
-						if len(v) != 0 && v != "" {
-							s_ := string(block1.Hash) + v
-							arr1 := sha256.Sum256([]byte(s_))
-							arr2 := convertTo32ByteArray(block1.Hash)
-							diff := 22
-							if global.Senior.Load() {
-								diff = 2
-							}
-							if check(arr1, arr2, diff) {
-								//fmt.Println("验证成功："+v)
-								s1 := strconv.Itoa(int(k.ShardID)) + ":" + strconv.Itoa(int(k.NodeID))
-								m3 = append(m3, s1)
-								m4 = append(m4, v)
+					if global.Senior.Load() {
+						for k, v := range m2 {
+							s1 := strconv.Itoa(int(k.ShardID)) + ":" + strconv.Itoa(int(k.NodeID))
+							m3 = append(m3, s1)
+							m4 = append(m4, v)
+						}
+					}else {
+						for k, v := range m2 {
+							if len(v) != 0 && v != "" {
+								s_ := string(block1.Hash) + v
+								arr1 := sha256.Sum256([]byte(s_))
+								arr2 := convertTo32ByteArray(block1.Hash)
+								diff := 22
+								if check(arr1, arr2, diff) {
+									//fmt.Println("验证成功："+v)
+									s1 := strconv.Itoa(int(k.ShardID)) + ":" + strconv.Itoa(int(k.NodeID))
+									m3 = append(m3, s1)
+									m4 = append(m4, v)
+								}
 							}
 						}
 					}
+
+
 				}
 				root := hex.EncodeToString(p.CurChain.CurrentBlock.Header.StateRoot)
 				uid := uuid.New().String()
@@ -568,10 +662,11 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 		p.lastCommitTime.Store(time.Now().UnixMilli())
 
 		// if this node is a main node, then unlock the sequencelock
-		if p.NodeID == uint64(p.view.Load()) {
+		if p.NodeID == uint64(p.view.Load()) && p.sequenceLockFlag.Load(){
 			p.sequenceLock.Unlock()
+			p.sequenceLockFlag.Store(false)
 			//p.pl.Plog.Printf("S%dN%d get sequenceLock unlocked...\n", p.ShardID, p.NodeID)
-			p.pl.Plog.Printf("S%d get sequenceLock unlocked...\n", p.ShardID)
+			//p.pl.Plog.Printf("S%d get sequenceLock unlocked...\n", p.ShardID)
 		}
 	}
 }
@@ -737,5 +832,5 @@ func (p *PbftConsensusNode) handleSendOldSeq(content []byte) {
 		}
 	}
 
-	p.askForLock.Unlock()
+	//p.askForLock.Unlock()
 }

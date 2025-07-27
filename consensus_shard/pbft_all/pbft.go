@@ -70,6 +70,7 @@ type PbftConsensusNode struct {
 
 	// locks about pbft
 	sequenceLock sync.Mutex // the lock of sequence
+	sequenceLockFlag atomic.Bool
 	lock         sync.Mutex // lock the stage
 	askForLock   sync.Mutex // lock for asking for a serise of requests
 
@@ -348,7 +349,7 @@ func (p *PbftConsensusNode) HandleClientRequest2() {
 				p.handleMessage(clientRequest)
 				p.tcpPoolLock.Unlock()
 			case io.EOF:
-				log.Println("client closed the connection by terminating the process...")
+				//log.Println("client closed the connection by terminating the process...")
 				flag = false
 			default:
 				//log.Printf("error: %v\n", err)

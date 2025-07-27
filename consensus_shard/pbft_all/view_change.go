@@ -5,7 +5,7 @@ import (
 	"blockEmulator/networks"
 	"encoding/json"
 	"log"
-	"strconv"
+
 	"time"
 )
 
@@ -18,9 +18,10 @@ func (p *PbftConsensusNode) viewChangePropose() {
 	// load pbftStage as 5, i.e., making a view change
 	p.pbftStage.Store(5)
 
-	add := p.viewchangecount.Add(1)
-	itoa := strconv.Itoa(int(add))
-	p.pl.Plog.Println("This is the time #["+ itoa+"] attempt to perform view change. Note that this may happen 10 times in total, please be patient and wait.")
+	//add := p.viewchangecount.Add(1)
+	_ = p.viewchangecount.Add(1)
+	//itoa := strconv.Itoa(int(add))
+	//p.pl.Plog.Println("This is the time #["+ itoa+"] attempt to perform view change. Note that this may happen 10 times in total, please be patient and wait.")
 	vcmsg := message.ViewChangeMsg{
 		CurView:  int(p.view.Load()),
 		NextView: int(p.view.Load()+1) % int(p.node_nums),
@@ -55,7 +56,7 @@ func (p *PbftConsensusNode) handleViewChangeMsg(content []byte) {
 	}
 	p.viewChangeMap[vcData][vcmsg.FromNode] = true
 
-	p.pl.Plog.Println("Received view change message from Node", vcmsg.FromNode)
+	//p.pl.Plog.Println("Received view change message from Node", vcmsg.FromNode)
 
 	// if cnt = 2*f+1, then broadcast newView msg
 	if len(p.viewChangeMap[vcData]) == 2*int(p.malicious_nums)+1 {
@@ -90,7 +91,7 @@ func (p *PbftConsensusNode) handleNewViewMsg(content []byte) {
 	}
 	p.newViewMap[vcData][nvmsg.FromNode] = true
 
-	p.pl.Plog.Println("Received new view message from Node", nvmsg.FromNode)
+	//p.pl.Plog.Println("Received new view message from Node", nvmsg.FromNode)
 
 	// if cnt = 2*f+1, then step into the next view.
 	if len(p.newViewMap[vcData]) == 2*int(p.malicious_nums)+1 {

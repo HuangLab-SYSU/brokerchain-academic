@@ -1,7 +1,9 @@
 package main
 
 import (
-	"blockEmulator/build"
+//_ "net/http/pprof"
+
+"blockEmulator/build"
 	"blockEmulator/global"
 	"blockEmulator/networks"
 	"blockEmulator/params"
@@ -88,7 +90,29 @@ func Post(url string, data []byte) ([]byte, error) {
 	}
 	return body, nil
 }
-
+func Post2(url string, data []byte) ([]byte, error) {
+	req, err := http.NewRequest("POST", "http://"+global.ServerHost+":"+global.ServerPort+"/"+url, bytes.NewBuffer(data))
+	if err != nil {
+		//fmt.Println("Error creating request:", err)
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		//fmt.Println("Error sending request:", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading response body:", err)
+		return nil, err
+	}
+	return body, nil
+}
 type QueryReq struct {
 	PublicKey string `json:"PublicKey" binding:"required"`
 	RandomStr string `json:"RandomStr" binding:"required"`
@@ -660,10 +684,10 @@ func handleopenwallet(reader *bufio.Reader) {
 	})
 	freePort, _ := getFreePort()
 	fmt.Println()
-	fmt.Println("-----********************************************-----")
-	fmt.Println("Your account address is:【" + GetAddress() + "】")
-	fmt.Println("The browser wallet URL is:" + "【http://127.0.0.1:" + strconv.Itoa(freePort) + "】")
-	fmt.Println("-----********************************************-----")
+	fmt.Println("/----*************************************************************----\\")
+	fmt.Println("| Your account address is:【" + GetAddress() + "】 |")
+	fmt.Println("| The browser wallet URL is:" + "【http://127.0.0.1:" + strconv.Itoa(freePort) + "】                 |")
+	fmt.Println("\\----*************************************************************----/")
 	fmt.Println()
 	go r.Run("0.0.0.0:" + strconv.Itoa(freePort))
 
@@ -822,10 +846,28 @@ var filename1 string
 //
 //
 //}
+func PrintLog(format string, v ...interface{}) {
+	timestamp := time.Now().Format("2006/01/02 15:04:05.000")
+	msg := fmt.Sprintf(format, v...)
+	parts := strings.Split(timestamp, ".")
+	millis := parts[1]
+	log.Printf("%s   %s", millis, msg)
+}
+
 
 func main() {
 
 
+
+	//go func() {
+	//	log.Println(http.ListenAndServe("localhost:6080", nil))
+	//}()
+	go func() {
+		for  {
+			runtime.GC()
+			time.Sleep(60 * time.Second)
+		}
+	}()
 
 	global.Senior.Store(false)
 	pflag.StringVarP(&filename1, "filename", "f", "a", "the filename")
@@ -1030,12 +1072,12 @@ func main() {
 	//		}()
 	//	}
 	//}
-
+	log.SetOutput(os.Stdout)
 	Runhttp()
 	f:=false
 	global.Randomstr = uuid.New().String()
 	for {
-		fmt.Println("Start trying to join BrokerChain network...")
+		PrintLog("Start trying to join BrokerChain network...")
 		for  {
 			if !JoinPoS() {
 				time.Sleep(1 * time.Second)
@@ -1052,17 +1094,22 @@ func main() {
 				}
 				m, _ := json.Marshal(beatreq)
 				for  {
-					go Post("beat", m)
+					da, err := Post2("beat", m)
+					if err != nil {
+						fmt.Println("Sending the beat failed: " + err.Error())
+					}
+					if !strings.Contains(string(da), "success") {
+						fmt.Println("Sending the beat successfully, but returns error: " + string(da))
+					}
 					time.Sleep(5 * time.Second)
 				}
 			}()
 		}
 		if global.Senior.Load() {
-			fmt.Println("Join a senior shard of BrokerChain network successfully.")
+			PrintLog("Join a senior shard of BrokerChain network successfully.")
 		}else {
-			fmt.Println("Join a junior shard of BrokerChain network successfully.")
+			PrintLog("Join a junior shard of BrokerChain network successfully.")
 		}
-
 		WaitConstructShard()
 		if !build_(){
 			continue
@@ -1158,7 +1205,7 @@ func connect() {
 		//conn, err2 := dialer.Dial("tcp", global.ServerHost+":"+global.ServerForwardPort)
 		conn, err2 := dialer.Dial("tcp", global.ProxyServerHost+":"+global.ServerForwardPort)
 		if err2 != nil {
-			log.Println("Connect error", err2)
+			PrintLog("Connect error", err2)
 		} else {
 			conn.(*net.TCPConn).SetKeepAlive(true)
 			global.Conn = conn
@@ -1221,6 +1268,7 @@ func JoinPoS() bool {
 		Sign2:     sign2,
 		R: global.Randomstr,
 	}
+	//fmt.Println(joinreq.R)
 	m, _ := json.Marshal(joinreq)
 	url1:= "join2"
 	if global.Senior.Load() {
@@ -1235,7 +1283,7 @@ func JoinPoS() bool {
 		return true
 	} else {
 		fmt.Println(string(data))
-		if strings.Contains(string(data), "do not join system using the same private key") {
+		if strings.Contains(string(data), "do not join system using the same private key") || strings.Contains(string(data), "use the same account") {
 			fmt.Println()
 			fmt.Println("=============********************************************************************************=============")
 			fmt.Println("【Join failed】. Please do not join system using the same private key. Program will exit after 10 seconds.")
@@ -1244,7 +1292,7 @@ func JoinPoS() bool {
 			time.Sleep(10 * time.Second)
 			os.Exit(1)
 		}
-		if strings.Contains(string(data), "Your balance is less than") {
+		if strings.Contains(string(data), "less than") {
 			fmt.Println()
 			fmt.Println("=============********************************************************************************=============")
 			if global.Senior.Load() {
@@ -1428,20 +1476,20 @@ func WaitConstructShard() {
 			return
 		}
 		if strings.Contains(string(m1), "success") {
-			fmt.Println("Connect successfully, waiting construct new shard...")
+			PrintLog("Connect successfully, waiting construct new shard...")
 		}
 
 		for {
 			_, message, err := conn.ReadMessage()
 			if err != nil {
-				//log.Println("Read error:", err)
+				//PrintLog("Read error:", err)
 				return
 			}
 			//log.Printf("Received: %s", message)
-			log.Printf("Consensus gets started...\n")
+			PrintLog("Consensus gets started...\n")
 
 				if err = json.Unmarshal(message, &config); err != nil {
-					fmt.Println("Unmarshal error:", err)
+					PrintLog("Unmarshal error:", err)
 					continue
 				}
 
@@ -2231,10 +2279,11 @@ func Runhttp() {
 
 	freePort, _ := getFreePort()
 	fmt.Println()
-	fmt.Println("-----********************************************-----")
-	fmt.Println("Your account address is:【" + GetAddress() + "】")
-	fmt.Println("The browser wallet URL is:" + "【http://127.0.0.1:" + strconv.Itoa(freePort) + "】")
-	fmt.Println("-----********************************************-----")
+
+	fmt.Println("/----*************************************************************----\\")
+	fmt.Println("| Your account address is:【" + GetAddress() + "】 |")
+	fmt.Println("| The browser wallet URL is:" + "【http://127.0.0.1:" + strconv.Itoa(freePort) + "】                 |")
+	fmt.Println("\\----*************************************************************----/")
 	fmt.Println()
 	go r.Run("0.0.0.0:" + strconv.Itoa(freePort))
 	file, err := os.OpenFile("The browser wallet URL of account "+GetAddress()+".txt", os.O_CREATE|os.O_WRONLY, 0644)

@@ -2,6 +2,7 @@ package build
 
 import (
 	"blockEmulator/consensus_shard/pbft_all"
+	"blockEmulator/global"
 
 	"blockEmulator/networks"
 	"blockEmulator/params"
@@ -65,44 +66,12 @@ func BuildSupervisor(nnm, snm uint64) {
 func BuildNewPbftNode(nid, nnm, sid, snm uint64) {
 	methodID := params.ConsensusMethod
 	worker := pbft_all.NewPbftNode(sid, nid, initConfig(nid, nnm, sid, snm), params.CommitteeMethod[methodID])
+	if global.Senior.Load() {
+		params.PbftViewChangeTimeOut = 60000
+		params.PbftStopShardTimeout = 600000
+	}
 	go worker.TcpListen()
 	go worker.HandleClientRequest2()
 	go worker.Beat()
-
-
-
-	//for j := 0; j < int(nnm); j++ {
-	//	if j == int(nid) {
-	//		continue
-	//	}
-	//	addr := params.IPmap_nodeTable[sid][uint64(j)]
-	//
-	//
-	//	go func() {
-	//		flag:= false
-	//		dialer := &net.Dialer{Timeout: 3 * time.Second}
-	//		for i := 0; i < 4; i++ {
-	//			conn, err := dialer.Dial("tcp", addr)
-	//			if err != nil {
-	//				fmt.Println("连接失败:", err)
-	//			}else {
-	//				flag  = true
-	//				fmt.Println("成功连接到:", addr)
-	//				conn.Close()
-	//				break
-	//			}
-	//		}
-	//		if !flag {
-	//			fmt.Println("连接失败:", addr)
-	//		}
-	//
-	//
-	//	}()
-	//
-	//
-	//}
-	//
-	//time.Sleep(20000 * time.Millisecond)
-
 	worker.Propose()
 }

@@ -35,7 +35,7 @@ func (rbhm *RawBrokerPbftExtraHandleMod) HandleinPropose() (bool, *message.Reque
 // the diy operation in preprepare
 func (rbhm *RawBrokerPbftExtraHandleMod) HandleinPrePrepare(ppmsg *message.PrePrepare) bool {
 	if rbhm.pbftNode.CurChain.IsValidBlock(core.DecodeB(ppmsg.RequestMsg.Msg.Content)) != nil {
-		rbhm.pbftNode.pl.Plog.Printf("S%dN%d : not a valid block\n", rbhm.pbftNode.ShardID, rbhm.pbftNode.NodeID)
+		//rbhm.pbftNode.pl.Plog.Printf("S%dN%d : not a valid block\n", rbhm.pbftNode.ShardID, rbhm.pbftNode.NodeID)
 		return false
 	}
 	rbhm.pbftNode.pl.Plog.Printf("S%dN%d : the pre-prepare message is correct, putting it into the RequestPool. \n", rbhm.pbftNode.ShardID, rbhm.pbftNode.NodeID)

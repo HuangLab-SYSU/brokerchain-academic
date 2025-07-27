@@ -79,7 +79,7 @@ func (s *Storage) UpdateNewestBlock(newestbhash []byte) {
 	if err != nil {
 		fmt.Println(err)
 	}else {
-		fmt.Println("The newest block is updated")
+		//fmt.Println("The newest block is updated")
 	}
 }
 
@@ -113,7 +113,7 @@ func (s *Storage) AddBlock(b *core.Block) {
 	}else{
 		s.AddBlockHeader(b.Hash, b.Header)
 		s.UpdateNewestBlock(b.Hash)
-		fmt.Println("Block is added")
+		//fmt.Println("Block is added")
 	}
 }
 

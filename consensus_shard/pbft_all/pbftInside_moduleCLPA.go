@@ -44,12 +44,12 @@ func (cphm *CLPAPbftInsideExtraHandleMod) HandleinPrePrepare(ppmsg *message.PreP
 		// the request is a block
 		if cphm.pbftNode.CurChain.IsValidBlock(core.DecodeB(ppmsg.RequestMsg.Msg.Content)) != nil {
 			//cphm.pbftNode.pl.Plog.Printf("S%dN%d : not a valid block\n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
-			cphm.pbftNode.pl.Plog.Printf("S%d : not a valid block\n", cphm.pbftNode.ShardID)
+			//cphm.pbftNode.pl.Plog.Printf("S%d : not a valid block\n", cphm.pbftNode.ShardID)
 			return false
 		}
 	}
 	//cphm.pbftNode.pl.Plog.Printf("S%dN%d : the pre-prepare message is correct, putting it into the RequestPool. \n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
-	cphm.pbftNode.pl.Plog.Printf("S%d : the pre-prepare message is correct, putting it into the RequestPool. \n", cphm.pbftNode.ShardID)
+	//cphm.pbftNode.pl.Plog.Printf("S%d : the pre-prepare message is correct, putting it into the RequestPool. \n", cphm.pbftNode.ShardID)
 	cphm.pbftNode.requestPool[string(ppmsg.Digest)] = ppmsg.RequestMsg
 	// merge to be a prepare message
 	return true
@@ -72,16 +72,16 @@ func (cphm *CLPAPbftInsideExtraHandleMod) HandleinCommit(cmsg *message.Commit) b
 	// if a block request ...
 	block := core.DecodeB(r.Msg.Content)
 	//cphm.pbftNode.pl.Plog.Printf("S%dN%d : adding the block %d...now height = %d \n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID, block.Header.Number, cphm.pbftNode.CurChain.CurrentBlock.Header.Number)
-	cphm.pbftNode.pl.Plog.Printf("S%d : adding the block %d...now height = %d \n", cphm.pbftNode.ShardID, block.Header.Number, cphm.pbftNode.CurChain.CurrentBlock.Header.Number)
+	//cphm.pbftNode.pl.Plog.Printf("S%d : adding the block %d...now height = %d \n", cphm.pbftNode.ShardID, block.Header.Number, cphm.pbftNode.CurChain.CurrentBlock.Header.Number)
 	cphm.pbftNode.CurChain.AddBlock(block)
 	//cphm.pbftNode.pl.Plog.Printf("S%dN%d : added the block %d... \n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID, block.Header.Number)
 	cphm.pbftNode.pl.Plog.Printf("S%d : added the block %d... \n", cphm.pbftNode.ShardID, block.Header.Number)
-	cphm.pbftNode.CurChain.PrintBlockChain()
+	//cphm.pbftNode.CurChain.PrintBlockChain()
 
 	// now try to relay txs to other shards (for main nodes)
 	if cphm.pbftNode.NodeID == uint64(cphm.pbftNode.view.Load()) {
 		//cphm.pbftNode.pl.Plog.Printf("S%dN%d : main node is trying to send relay txs at height = %d \n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID, block.Header.Number)
-		cphm.pbftNode.pl.Plog.Printf("S%d : main node is trying to send relay txs at height = %d \n", cphm.pbftNode.ShardID,  block.Header.Number)
+		//cphm.pbftNode.pl.Plog.Printf("S%d : main node is trying to send relay txs at height = %d \n", cphm.pbftNode.ShardID,  block.Header.Number)
 		// generate relay pool and collect txs excuted
 		cphm.pbftNode.CurChain.Txpool.RelayPool = make(map[uint64][]*core.Transaction)
 		interShardTxs := make([]*core.Transaction, 0)
@@ -122,7 +122,7 @@ func (cphm *CLPAPbftInsideExtraHandleMod) HandleinCommit(cmsg *message.Commit) b
 		//msg_send := message.MergeMessage(message.CBlockInfo, bByte)
 		//go networks.TcpDial(msg_send, cphm.pbftNode.ip_nodeTable[params.SupervisorShard][0])
 		//cphm.pbftNode.pl.Plog.Printf("S%dN%d : sended excuted txs\n", cphm.pbftNode.ShardID, cphm.pbftNode.NodeID)
-		cphm.pbftNode.pl.Plog.Printf("S%d : sended excuted txs\n", cphm.pbftNode.ShardID)
+		//cphm.pbftNode.pl.Plog.Printf("S%d : sended excuted txs\n", cphm.pbftNode.ShardID)
 
 		cphm.pbftNode.CurChain.Txpool.GetLocked()
 
