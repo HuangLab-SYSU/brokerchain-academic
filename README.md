@@ -12,6 +12,11 @@ In BrokerChain’s ecosystem, anyone can become a researcher, miner, staker, mar
 - Developers can build dApps via deploying smart contracts to the embedded EVM. Please refer to the readme.md to learn how to deploy/invoke smart contracts.
 - Users: refers to general users who can initiate transfer transactions, invest in BrokerChain on chain financial products, and participate in activities initiated by on chain applications using dApps. For example, when users use BrokerChain Wallet, their purposes can be subdivided into submitting transfer transactions, receiving payments, staking tokens to DeFi protocols, becoming a broker role (i.e., market maker) to earn liquidity staking income, receiving "faucet" tokens, participating in airdrops, and so on. Please visit the BrokerChain Wallet Project (https://github.com/HuangLab-SYSU/brokerwallet-academic) to download the BrokerChain Wallet APP.
 
+
+## BrokerChain Dashboard 
+
+Users can access the BrokerChain Dashboard at http://academic.broker-chain.com:56741/.
+
 ## Install BrokerChain Miner Client
 
 1. Based on your operating system, download the corresponding BrokerChain compressed package from the Release page of the BrokerChain GitHub repository (https://github.com/HuangLab-SYSU/brokerchain-academic/releases/).
