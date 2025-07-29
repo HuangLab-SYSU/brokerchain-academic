@@ -17,6 +17,11 @@ In BrokerChain’s ecosystem, anyone can become a researcher, miner, staker, mar
 
 Users can access the BrokerChain Dashboard at http://academic.broker-chain.com:56741/.
 
+- View Minted Token Quantities: Check the total number of tokens that have been minted.
+- Check Account's Balance: Query the balance of any account.
+- Apply for Developer Faucet Tokens: Request tokens specifically designed for developers through the faucet service.
+- ...and access more advanced features
+
 ## Install BrokerChain Miner Client
 
 1. Based on your operating system, download the corresponding BrokerChain compressed package from the Release page of the BrokerChain GitHub repository (https://github.com/HuangLab-SYSU/brokerchain-academic/releases/).
