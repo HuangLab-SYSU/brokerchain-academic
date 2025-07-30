@@ -1,5 +1,10 @@
 # BrokerChain(academic)
 
+## BrokerChain Token Issuance Overview
+The total supply of BrokerChain tokens is capped at 1.2 billion, distributed through a hybrid model combining pre-allocated reserves and a four-year halving emission schedule for public issuance. 
+
+A portion of the supply is reserved for community-building initiatives and to incentivize early developers, ensuring sustainable ecosystem growth. The remaining tokens enter circulation via a decaying emission mechanism, reducing block rewards by half every four years to promote long-term value alignment.
+
 ## Several typical roles of participants
 
 In BrokerChain’s ecosystem, anyone can become a researcher, miner, staker, market maker, or dApp developer.
