@@ -2,7 +2,7 @@
 
 
 
-# BrokerChain(academic)
+# BrokerChain (academic)
 
 
 ## BrokerChain Token Issuance Overview
