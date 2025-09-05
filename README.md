@@ -9,7 +9,7 @@
 
 ### Several typical Roles of Participants
 
-In BrokerChain’s ecosystem, anyone can become a researcher, miner, staker, market maker, or dApp developer.
+In BrokerChain’s ecosystem, anyone can become a researcher, miner, user (including staker, market maker, etc), or dApp developer.
 
 
 ![Roles](images/img_15.png)
@@ -21,18 +21,15 @@ In BrokerChain’s ecosystem, anyone can become a researcher, miner, staker, mar
 
 
 ### BrokerChain Token-issuing Plan
-The total supply of BrokerChain tokens (named **BKC**) is capped at 1.2 billion, distributed through a hybrid model combining pre-allocated reserves and a four-year halving emission schedule for public issuance. 
-
-About 25% of the supply is reserved for community-building initiatives and incentivizing early developers, ensuring sustainable ecosystem growth. The remaining tokens enter circulation via a decaying emission mechanism to promote long-term value alignment, reducing block rewards by half every four years.
+The total supply of BrokerChain tokens (named **BKC**) is capped at 1.2 billion, distributed through a hybrid model combining pre-allocated reserves and a four-year halving emission schedule for public issuance. About 25% of the supply is reserved for community-building initiatives and incentivizing early developers, ensuring sustainable ecosystem growth. The remaining tokens enter circulation via a decaying emission mechanism to promote long-term value alignment, reducing block rewards by half every four years.
 
 ### Follow our X Media
-Please follow our X (Twitter): https://x.com/0xBrokerChain
-We will share new activities and BrokerChain news via this X account.
+Please follow our X (Twitter): https://x.com/0xBrokerChain. We will share new activities and BrokerChain news via this X account.
 
 
 ## BrokerChain Dashboard 
 
-Users can access the **BrokerChain Dashboard** at【 http://academic.broker-chain.com:56741/ 】.
+Users can access the **BrokerChain Dashboard** at http://academic.broker-chain.com:56741/.
 
 - **View Minted Token Quantities**: Check the total number of tokens that have been minted.
 - **Check Account's Balance**: Query the balance of any given account address.
