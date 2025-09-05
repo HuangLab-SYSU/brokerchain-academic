@@ -5,7 +5,7 @@
 # BrokerChain (academic)
 
 
-## Overview of Participants
+## Overview
 
 ### Several typical Roles of Participants
 
