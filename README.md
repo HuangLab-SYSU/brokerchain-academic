@@ -14,14 +14,14 @@ In BrokerChain’s ecosystem, anyone can become a researcher, miner, staker, mar
 
 ![Roles](images/img_15.png)
 
-Researchers: Researchers can use this project's open-source code to implement technological innovations at the bottom of the chain.
-- Miners can join the Testnet to earn mining rewards. Please visit the release page ( https://github.com/HuangLab-SYSU/brokerchain-academic/releases/ ) to download the miner client and join the network.
-- Developers can build dApps by deploying smart contracts to the embedded EVM. Please review the README.md to learn how to deploy/invoke smart contracts.
-- Users: refers to general users who can initiate transfer transactions, invest in BrokerChain on-chain financial products, and participate in activities undertaken by on-chain applications using dApps. For example, when users use BrokerChain Wallet, their purposes can be subdivided into submitting transfer transactions, receiving payments, staking tokens to DeFi protocols, becoming a broker role (i.e., market maker) to earn liquidity staking income, receiving "faucet" tokens, participating in airdrops, and so on. Please visit the BrokerChain Wallet Project (https://github.com/HuangLab-SYSU/brokerwallet-academic) to download the BrokerChain Wallet APP.
+- **Researchers** can use this project's open-source code to implement technological innovations at the bottom of the chain.
+- **Miners** can join the Testnet to earn mining rewards. Please visit the release page ( https://github.com/HuangLab-SYSU/brokerchain-academic/releases/ ) to download the miner client and join the network.
+- **Developers** can build dApps by deploying smart contracts to the embedded EVM. Please review the README.md to learn how to deploy/invoke smart contracts.
+- **Users** can initiate token-transfer transactions, invest in BrokerChain on-chain financial products, and participate in activities undertaken by on-chain applications using dApps. For example, when users use BrokerChain Wallet, their purposes can be subdivided into submitting transfer transactions, receiving payments, staking tokens to DeFi protocols, becoming a broker role (i.e., market maker) to earn liquidity staking income, receiving "faucet" tokens, participating in airdrops, and so on. Please visit the BrokerChain Wallet Project (https://github.com/HuangLab-SYSU/brokerwallet-academic) to download the BrokerChain Wallet APP.
 
 
 ### BrokerChain Token-issuing Plan
-The total supply of BrokerChain tokens (a.k.a. BKC) is capped at 1.2 billion, distributed through a hybrid model combining pre-allocated reserves and a four-year halving emission schedule for public issuance. 
+The total supply of BrokerChain tokens (named **BKC**) is capped at 1.2 billion, distributed through a hybrid model combining pre-allocated reserves and a four-year halving emission schedule for public issuance. 
 
 About 25% of the supply is reserved for community-building initiatives and incentivizing early developers, ensuring sustainable ecosystem growth. The remaining tokens enter circulation via a decaying emission mechanism to promote long-term value alignment, reducing block rewards by half every four years.
 
@@ -86,12 +86,12 @@ If your operating system is macOS, you can follow the instructions and steps bel
 While starting and running _brokerchain_academic_macos_, you may encounter some "resistance," explained below.
 
 - Please note that you cannot double-click the brokerchain_academic_macos file to run it, as this will result in path errors, causing the program to run incorrectly and exit. You need to index the folder where the file is located in the terminal before using the ./brokerchain_academic_macos command to start running it.
-- Due to deploying IP list seed servers abroad, issues such as an inability to connect to the servers or network connection timeouts may occur. You need to close the current program and try rerunning it multiple times until you connect to the server.
+- Due to deploying IP list seed servers abroad, issues such as an inability to connect to the servers or network connection timeouts may occur. You'll need to terminate the current program and try rerunning it multiple times until you connect to the server.
 - Due to the need for a good network connection in blockchain, when prompted with network connection issues, please try adjusting the IP or DNS to default settings or switching between multiple network connection methods. For example, you can use other WiFi, mobile hotspots, etc.
 
 
 
-## Common misoperation and corresponding handling of client programs
+## Common Misoperation and Corresponding Handling of Client Programs
 
 Miners may encounter the following common "misoperations" when running consensus nodes:
 
@@ -107,7 +107,7 @@ When users encounter the above situation or similar situations, they can restart
 
 
 
-## Execute consensus protocol to obtain block rewards
+## Execute Consensus Protocol to obtain Block Rewards
 
 After joining the network, your node waits to form a new shard.
 
@@ -141,7 +141,7 @@ Remix is a mainstream online IDE that supports the development of smart contract
 ![RunBrokerChain6](images/img_6.png)
 
 
-## Writing smart contracts
+## Writing Smart Contracts
 
 Click on File Explorer -> Create New File, enter _A.sol_, and create a new smart contract.
 
@@ -152,7 +152,7 @@ Write a simple smart contract in _A.sol_. This smart contract includes a constru
 ![RunBrokerChain8](images/img_8.png)
 
 
-## Compile smart contracts
+## Compile Smart Contracts
 
 Click the third button on the left to jump to the contract compilation page. Select Solidity version 0.8.26 and click the Compile A.sol button to compile the smart contract.
 
@@ -174,14 +174,14 @@ The Account box displays your account address and balance. Your account comes fr
 ![RunBrokerChain12](images/img_12.png)
 
 
-## Deploy smart contracts
+## Deploy Smart Contracts
 
 Select Custom in the GAS LIMITED option and enter 600000 (if the Gas Limit is too low, deploying the contract may fail), then click the Deploy button to deploy the smart contract. After successful deployment, the contract's address is displayed in the Deploy Contracts section below.
 
 ![RunBrokerChain13](images/img_13.png)
 
 
-## Invoke smart contract
+## Invoke Smart Contract
 
 Click on the contract's function in Deploy Contracts to invoke the smart contract. After a successful invoke, the console displays relevant information about the invoke, such as status, transaction hash, block hash, consumption of GAS, etc.
 
