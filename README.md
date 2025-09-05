@@ -1,3 +1,5 @@
+![Logo](Logo.png)
+
 # BrokerChain(academic)
 
 ## BrokerChain Token Issuance Overview
@@ -162,9 +164,9 @@ Click on the function of the contract in Deploy Contracts to invoke the smart co
 
 # Disclaimers
 
-- BrokerChain (academic) is only for academic exchange purposes, and users are not allowed to engage in any illegal activities using BrokerChain (academic).
-- Any direct or indirect consequences arising from the use of BrokerChain by users are not related to the founding team of BrokerChain.
-- The founding team of BrokerChain (academic) reserves the right to modify, update, or terminate BrokerChain (academic) at any time without prior notice to users.
+- BrokerChain (academic) is only for academic purposes, and users are not allowed to engage in any illegal activities using BrokerChain (academic).
+- Any direct or indirect consequences arising from using BrokerChain by users are not related to the founding team of BrokerChain.
+- The founding team of BrokerChain (academic) reserves the right to modify, update, or terminate BrokerChain (academic) at any time without prior notice to users.   
 - When using BrokerChain (academic), users should bear the risks themselves and agree to waive any claims against the founding team.
 
-This disclaimer is governed by and interpreted in accordance with the laws of the People's Republic of China.
+This disclaimer is governed by and interpreted by the laws of the People's Republic of China.
