@@ -25,7 +25,9 @@ The total supply of BrokerChain tokens (named **BKC**) is capped at 1.2 billion,
 
 About 25% of the supply is reserved for community-building initiatives and incentivizing early developers, ensuring sustainable ecosystem growth. The remaining tokens enter circulation via a decaying emission mechanism to promote long-term value alignment, reducing block rewards by half every four years.
 
-
+### Follow our X Media
+Please follow our X (Twitter): https://x.com/0xBrokerChain
+We will share new activities and BrokerChain news via this X account.
 
 
 ## BrokerChain Dashboard 
