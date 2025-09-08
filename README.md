@@ -9,7 +9,7 @@
 
 ### Several typical Roles of Participants
 
-In BrokerChain’s ecosystem, anyone can become a researcher, miner, user (including staker, market maker, etc), or dApp developer.
+In BrokerChain’s ecosystem, everyone can become a researcher, miner, user (including staker, market maker, etc), or dApp developer.
 
 
 ![Roles](images/img_15.png)
@@ -67,7 +67,7 @@ Users can visit the BrokerChain Wallet project ( https://github.com/HuangLab-SYS
 
 If you want to use the previously generated private key, please enter "2." Here, we assume you are adding the Enter the BrokerChain system for the first time. Enter "1" to generate a new public-private key pair.
 
-The system prompts us to enter the storage location of the private key. If we enter _1.txt_, the system will save the private key to the 1.txt file in the current BrokerChain folder.
+The system prompts us to enter the storage location of the private key. If we input _1.txt_, the client will save the private key to _1.txt_, which is located in the current folder.
 
 ![RunBrokerChain3](images/img_24.png)
 
