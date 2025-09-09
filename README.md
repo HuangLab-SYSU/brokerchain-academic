@@ -7,7 +7,7 @@
 
 ## Overview
 
-### Several typical Roles of Participants
+### Four typical Participants
 
 In BrokerChain’s ecosystem, everyone can become a researcher, miner, user (including staker, market maker, etc), or dApp developer.
 
@@ -17,7 +17,7 @@ In BrokerChain’s ecosystem, everyone can become a researcher, miner, user (inc
 - **Researchers** can use this project's open-source code to implement technological innovations at the bottom of the chain.
 - **Miners** can join the Testnet to earn mining rewards. Please visit the release page ( https://github.com/HuangLab-SYSU/brokerchain-academic/releases/ ) to download the miner client and join the network.
 - **Developers** can build dApps by deploying smart contracts to the embedded EVM. Please review the README.md to learn how to deploy/invoke smart contracts.
-- **Users** can initiate token-transfer transactions, invest in BrokerChain on-chain financial products, and participate in activities undertaken by on-chain applications using dApps. For example, when users use BrokerChain Wallet, their purposes can be subdivided into submitting transfer transactions, receiving payments, staking tokens to DeFi protocols, becoming a broker role (i.e., market maker) to earn liquidity staking income, receiving "faucet" tokens, participating in airdrops, and so on. Please visit the BrokerChain Wallet Project (https://github.com/HuangLab-SYSU/brokerwallet-academic/releases) to download the BrokerChain Wallet APP.
+- **Users** can initiate token-transfer transactions, invest in BrokerChain on-chain financial products, and participate in activities undertaken by on-chain applications using dApps. For example, using BrokerChain Wallet, users can submit transfer transactions, receive payments, stake tokens to DeFi protocols, become a broker role (i.e., market maker) to earn liquidity staking income, receive "faucet" tokens, participate in airdrops, and so on. To download the wallet APP, please visit the BrokerChain Wallet Project (https://github.com/HuangLab-SYSU/brokerwallet-academic/releases).
 
 
 ### BrokerChain Token-issuing Plan
@@ -40,7 +40,7 @@ Users can access the **BrokerChain Dashboard** at http://academic.broker-chain.c
 
 
 ## BrokerChain Wallet
-Users can visit the BrokerChain Wallet project ( https://github.com/HuangLab-SYSU/brokerwallet-academic/releases ) to download the BrokerChain Wallet app and run it on Android devices. The app allows users to manage their accounts and invest their BKC coins in DeFi protocols to earn extra revenue.
+Users can visit the BrokerChain Wallet project ( https://github.com/HuangLab-SYSU/brokerwallet-academic/releases ) to download the BrokerChain Wallet app and run it on Android devices. The app allows users to manage their accounts and invest their BKC coins in DeFi protocols to earn revenue.
 
 
 ## Install BrokerChain Miner Client
