@@ -40,7 +40,7 @@ Users can access the **BrokerChain Dashboard** at http://academic.broker-chain.c
 
 
 ## BrokerChain Wallet
-Users can visit the BrokerChain Wallet project ( https://github.com/HuangLab-SYSU/brokerwallet-academic/releases ) to download the BrokerChain Wallet app and run it on Android devices. The app allows users to manage their accounts and invest their BKC coins in DeFi protocols to earn revenue.
+Users can visit the BrokerChain Wallet's releases page ( https://github.com/HuangLab-SYSU/brokerwallet-academic/releases ) to download the BrokerChain Wallet App and run it on Android devices. The app allows users to manage their accounts and invest their BKC coins in DeFi protocols to earn revenue.
 
 
 ## Install BrokerChain Miner Client
@@ -187,6 +187,26 @@ Select Custom in the GAS LIMITED option and enter 600000 (if the Gas Limit is to
 Click on the contract's function in Deploy Contracts to invoke the smart contract. After a successful invoke, the console displays relevant information about the invoke, such as status, transaction hash, block hash, consumption of GAS, etc.
 
 ![RunBrokerChain14](images/img_14.png)
+
+
+
+# Demo Samples and Videos
+
+## RWA tokenization
+This demo shows how to create an RWA project using BrokerChain toolkits.
+URL: https://github.com/HuangLab-SYSU/DePIN-RWA-academic
+
+## BrokerFi (a DeFi protocol)
+This demo video shows how a DeFi protocol (built on top of BrokerChain) works. 
+URL: https://j4s9dl19cd.feishu.cn/docx/AIa3dA1P7oCUUQx54Rcc2fZinRe
+
+Users can also participate in this DeFi protocol via our BrokerChain Wallet ( https://github.com/HuangLab-SYSU/brokerwallet-academic/releases ) by clicking the "BrokerFi" button on the Wallet's homepage.
+
+## NFT-Fi (a button on BrokerChain Wallet)
+This demo shows how to use BrokerChain Wallet to tokenize pictures into NFTs and how to create liquidity for them.
+To access this demo, please install our BrokerChain Wallet ( https://github.com/HuangLab-SYSU/brokerwallet-academic/releases ) and click the "NFT" button on the Wallet's homepage.
+
+
 
 
 # Disclaimers
