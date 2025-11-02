@@ -7,7 +7,7 @@
 
 ## Overview
 
-### Four typical Participants
+### Four typical participants
 
 In BrokerChain’s ecosystem, everyone can become a researcher, miner, user (including stakers, market makers, etc.), or dApp developer.
 
@@ -20,12 +20,12 @@ In BrokerChain’s ecosystem, everyone can become a researcher, miner, user (inc
 - **Users** can initiate token-transfer transactions, invest in BrokerChain on-chain financial products, and participate in activities undertaken by on-chain applications using dApps. For example, using BrokerChain Wallet, users can submit transfer transactions, receive payments, stake tokens in DeFi protocols, assume a broker role (i.e., market maker) to earn liquidity staking income, receive "faucet" tokens, participate in airdrops, and more. To download the wallet APP, please visit the BrokerChain Wallet Project (https://github.com/HuangLab-SYSU/brokerwallet-academic/releases).
 
 
-### BrokerChain Token-issuing Plan
+### BrokerChain poken-issuing plan
 The total supply of BrokerChain's tokens (named **BKC**) will be capped at 1.2 billion, which will be distributed through a hybrid model that combines pre-allocated reserves with a four-year halving emission schedule for public issuance. About 25% of the supply is reserved for community-building initiatives and incentivizing early developers, ensuring sustainable ecosystem growth. The remaining tokens enter circulation through a decaying emission mechanism, promoting long-term value alignment by reducing block rewards by half every four years.
 
 
-### Follow our X Media
-Please follow our X (Twitter) account: https://x.com/0xBrokerChain. We share BrokerChain news in this X account.
+### Follow our X (Twitter)
+Please follow our X (Twitter) account: https://x.com/0xBrokerChain. We share BrokerChain news and activities in this X account.
 
 
 ## BrokerChain Dashboard 
@@ -43,23 +43,23 @@ Users can access the **BrokerChain Dashboard** at http://academic.broker-chain.c
 Users can visit the BrokerChain Wallet's releases page ( https://github.com/HuangLab-SYSU/brokerwallet-academic/releases ) to download the BrokerChain Wallet App and run it on Android devices. The app allows users to manage their accounts and invest their BKC coins in DeFi protocols to earn revenue.
 
 
-## Install BrokerChain Miner Client
+## Install BrokerChain's Miner Client
 
-1. Based on your operating system, download the corresponding BrokerChain compressed package from the Release page of the BrokerChain GitHub repository ( https://github.com/HuangLab-SYSU/brokerchain-academic/releases/ ).
-2. Extract the BrokerChain compressed package into a local BrokerChain folder.
-
-
-## To Run a BrokerChain Miner Client on Your PC (with Windows OS)
+1. According to your operating system, download the corresponding BrokerChain compressed installer package from the Release page of the BrokerChain GitHub repository ( https://github.com/HuangLab-SYSU/brokerchain-academic/releases/ ).
+2. Extract the BrokerChain compressed package into a local folder.
 
 
-## A Tutorial Video
-
-Users can install and launch the BrokerChain **Miner Client** following the (Chinese-version) tutorial video: https://youtu.be/ZREsqTG7L8Y (《BrokerChain 挖矿客户端：如何加入共识网络？》)
+## To Launch a BrokerChain's Miner Client on Your PC (with Windows OS)
 
 
-## A Step-by-Step Guideline 
+## A tutorial video
 
-Assuming you have a Windows PC, follow the steps below to install a BrokerChain Miner Client.
+Users can install and launch the BrokerChain **Miner Client** following the (Chinese-version) tutorial video: https://youtu.be/ZREsqTG7L8Y (《BrokerChain 挖矿客户端：如何安装以及如何加入共识网络？》)
+
+
+## A step-by-step guideline 
+
+Assuming you have a Windows PC, follow the steps below to launch a BrokerChain Miner Client.
 
 1. Double-click the executable file within the BrokerChain folder to run BrokerChain. While entering the BrokerChain's welcome page, you can see the following options:
    1. Join BrokerChain as a consensus node & open the webpage wallet.
@@ -85,7 +85,7 @@ The system prompts us to enter the storage location of the private key. If we in
 This private key is tied to your account and will be stored locally, without being transmitted to the network. Please keep your private key safe and do not share it with anyone; otherwise, your account's assets will be at risk. Meanwhile, if you lose your private key, you will be unable to retrieve your account's assets.
 
 
-## Run a BrokerChain Miner on MacOS
+## Launch a BrokerChain's Miner Client on your MacOS PC
 
 If your operating system is macOS, you can follow the instructions and steps below to launch the BrokerChain (academic) miner client program.
 
@@ -139,7 +139,7 @@ At the same time, the node will execute the consensus protocol to generate block
 
 The browser wallet displays the account address and balance of the current node. As nodes execute consensus protocols to generate blocks, you will continue to receive block rewards, increasing your account balance.
 
-The browser wallet also provides a transfer function. To transfer funds, enter the receiving account address and transfer amount in the input box and click the Transfer button.
+The browser wallet also provides a transfer function. To transfer funds, enter the receiving account's address and transfer amount in the input box, and then click the Transfer button.
 
 
 
@@ -195,7 +195,7 @@ Select "Custom" in the GAS LIMITED option and enter 600000 (if the Gas Limit is 
 
 ## Invoke a Smart Contract
 
-Click on the contract's function in Deploy Contracts to invoke the smart contract. After a successful invocation, the console displays relevant information about the invocation, such as status, transaction hash, block hash, and consumption of gas, among other details.
+Click on the contract's function in Deploy Contracts to invoke the smart contract. After a successful invocation, the console displays relevant information about the invocation, including status, transaction hash, block hash, and gas consumption, among other details.
 
 ![RunBrokerChain14](images/img_14.png)
 
@@ -214,7 +214,7 @@ URL: https://j4s9dl19cd.feishu.cn/docx/AIa3dA1P7oCUUQx54Rcc2fZinRe
 Users can also participate in this DeFi protocol via our BrokerChain Wallet ( https://github.com/HuangLab-SYSU/brokerwallet-academic/releases ) by clicking the "BrokerFi" button on the Wallet's homepage.
 
 ## NFT-Fi (a button on BrokerChain Wallet)
-This demo demonstrates how to use BrokerChain Wallet to tokenize images into NFTs and create liquidity for them.
+This demo illustrates how to utilize BrokerChain Wallet to tokenize images into NFTs and generate liquidity for them.
 To access this demo, please install our BrokerChain Wallet ( https://github.com/HuangLab-SYSU/brokerwallet-academic/releases ) and click the "NFT" button on the Wallet's homepage.
 
 
