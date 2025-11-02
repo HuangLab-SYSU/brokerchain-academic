@@ -9,7 +9,7 @@
 
 ### Four typical Participants
 
-In BrokerChain’s ecosystem, everyone can become a researcher, miner, user (including staker, market maker, etc), or dApp developer.
+In BrokerChain’s ecosystem, everyone can become a researcher, miner, user (including stakers, market makers, etc.), or dApp developer.
 
 
 ![Roles](images/img_15.png)
@@ -17,11 +17,11 @@ In BrokerChain’s ecosystem, everyone can become a researcher, miner, user (inc
 - **Researchers** can use this project's open-source code to implement technological innovations at the bottom of the chain.
 - **Miners** can join the Testnet to earn mining rewards. Please visit the release page ( https://github.com/HuangLab-SYSU/brokerchain-academic/releases/ ) to download the miner client and join the network.
 - **Developers** can build dApps by deploying smart contracts to the embedded EVM. Please review the README.md to learn how to deploy/invoke smart contracts.
-- **Users** can initiate token-transfer transactions, invest in BrokerChain on-chain financial products, and participate in activities undertaken by on-chain applications using dApps. For example, using BrokerChain Wallet, users can submit transfer transactions, receive payments, stake tokens to DeFi protocols, become a broker role (i.e., market maker) to earn liquidity staking income, receive "faucet" tokens, participate in airdrops, and so on. To download the wallet APP, please visit the BrokerChain Wallet Project (https://github.com/HuangLab-SYSU/brokerwallet-academic/releases).
+- **Users** can initiate token-transfer transactions, invest in BrokerChain on-chain financial products, and participate in activities undertaken by on-chain applications using dApps. For example, using BrokerChain Wallet, users can submit transfer transactions, receive payments, stake tokens in DeFi protocols, assume a broker role (i.e., market maker) to earn liquidity staking income, receive "faucet" tokens, participate in airdrops, and more. To download the wallet APP, please visit the BrokerChain Wallet Project (https://github.com/HuangLab-SYSU/brokerwallet-academic/releases).
 
 
 ### BrokerChain Token-issuing Plan
-The total supply of BrokerChain's tokens (named **BKC**) will be capped at 1.2 billion, which will be distributed through a hybrid model combining pre-allocated reserves and a four-year halving emission schedule for public issuance. About 25% of the supply is reserved for community-building initiatives and incentivizing early developers, ensuring sustainable ecosystem growth. The remaining tokens enter circulation via a decaying emission mechanism to promote long-term value alignment, reducing block rewards by half every four years.
+The total supply of BrokerChain's tokens (named **BKC**) will be capped at 1.2 billion, which will be distributed through a hybrid model that combines pre-allocated reserves with a four-year halving emission schedule for public issuance. About 25% of the supply is reserved for community-building initiatives and incentivizing early developers, ensuring sustainable ecosystem growth. The remaining tokens enter circulation through a decaying emission mechanism, promoting long-term value alignment by reducing block rewards by half every four years.
 
 
 ### Follow our X Media
@@ -49,7 +49,18 @@ Users can visit the BrokerChain Wallet's releases page ( https://github.com/Huan
 2. Extract the BrokerChain compressed package into a local BrokerChain folder.
 
 
-## Run a BrokerChain Miner on Windows
+## To Run a BrokerChain Miner Client on Your PC (with Windows OS)
+
+
+## A Tutorial Video
+
+Users can install and launch the BrokerChain **Miner Client** following the (Chinese-version) tutorial video: https://youtu.be/ZREsqTG7L8Y (《BrokerChain 挖矿客户端：如何加入共识网络？》)
+
+
+## A Step-by-Step Guideline 
+
+Assuming you have a Windows PC, follow the steps below to install a BrokerChain Miner Client.
+
 1. Double-click the executable file within the BrokerChain folder to run BrokerChain. While entering the BrokerChain's welcome page, you can see the following options:
    1. Join BrokerChain as a consensus node & open the webpage wallet.
    2. Open the wallet page for the given account address.
@@ -71,7 +82,7 @@ The system prompts us to enter the storage location of the private key. If we in
 
 ![RunBrokerChain3](images/img_24.png)
 
-This private key is bound to your account and will only be stored locally without being sent to the network. Please keep your private key safe and do not share it with anyone; otherwise, your account's assets will be at risk. Meanwhile, if you lose your private key, you cannot retrieve your account's assets.
+This private key is tied to your account and will be stored locally, without being transmitted to the network. Please keep your private key safe and do not share it with anyone; otherwise, your account's assets will be at risk. Meanwhile, if you lose your private key, you will be unable to retrieve your account's assets.
 
 
 ## Run a BrokerChain Miner on MacOS
@@ -104,7 +115,7 @@ Miners may encounter the following common "misoperations" when running consensus
 - The client program is stuck for unknown reasons.
 - ···
 
-When users encounter the above situation or similar situations, they can restart the client program without worrying about losing their account balance. So, we recommend that users ensure their machine runs well and the network is unobstructed when using Miner features. It is best to keep running the client program continuously; otherwise, it will affect the benefits of participating in consensus.
+When users encounter the above situation or similar situations, they can restart the client program without worrying about losing their account balance. So, we recommend that users make sure their machine operates smoothly and the network remains unobstructed when using Miner features. It is best to keep running the client program continuously; otherwise, it will affect the benefits of participating in consensus.
 
 
 
@@ -148,7 +159,7 @@ Click on File Explorer -> Create New File, enter _A.sol_, and create a new smart
 
 ![RunBrokerChain7](images/img_7.png)
 
-Write a simple smart contract in _A.sol_. This smart contract includes a constructor, a uint256 type state variable, and two functions for reading and writing this state variable.
+Write a simple smart contract in _A.sol_. This smart contract includes a constructor, a uint256-type state variable, and two functions for reading and writing to this state variable.
 
 ![RunBrokerChain8](images/img_8.png)
 
@@ -170,21 +181,21 @@ Please enter the browser wallet address obtained by launching BrokerChain in the
 
 ![RunBrokerChain11](images/img_11.png)
 
-The Account box displays your account address and balance. Your account comes from block rewards and can be used for gas consumption when calling smart contracts.
+The Account box displays your account address and balance. Block rewards fund your account and can be used to cover gas consumption when calling smart contracts.
 
 ![RunBrokerChain12](images/img_12.png)
 
 
 ## Deploy Smart Contracts
 
-Select Custom in the GAS LIMITED option and enter 600000 (if the Gas Limit is too low, deploying the contract may fail), then click the Deploy button to deploy the smart contract. After successful deployment, the contract's address is displayed in the Deploy Contracts section below.
+Select "Custom" in the GAS LIMITED option and enter 600000 (if the Gas Limit is too low, deploying the contract may fail). Then, click the Deploy button to deploy the smart contract. After successful deployment, the contract's address is displayed in the Deploy Contracts section below.
 
 ![RunBrokerChain13](images/img_13.png)
 
 
 ## Invoke a Smart Contract
 
-Click on the contract's function in Deploy Contracts to invoke the smart contract. After a successful invoke, the console displays relevant information about the invoke, such as status, transaction hash, block hash, consumption of GAS, etc.
+Click on the contract's function in Deploy Contracts to invoke the smart contract. After a successful invocation, the console displays relevant information about the invocation, such as status, transaction hash, block hash, and consumption of gas, among other details.
 
 ![RunBrokerChain14](images/img_14.png)
 
@@ -203,7 +214,7 @@ URL: https://j4s9dl19cd.feishu.cn/docx/AIa3dA1P7oCUUQx54Rcc2fZinRe
 Users can also participate in this DeFi protocol via our BrokerChain Wallet ( https://github.com/HuangLab-SYSU/brokerwallet-academic/releases ) by clicking the "BrokerFi" button on the Wallet's homepage.
 
 ## NFT-Fi (a button on BrokerChain Wallet)
-This demo shows how to use BrokerChain Wallet to tokenize pictures into NFTs and how to create liquidity for them.
+This demo demonstrates how to use BrokerChain Wallet to tokenize images into NFTs and create liquidity for them.
 To access this demo, please install our BrokerChain Wallet ( https://github.com/HuangLab-SYSU/brokerwallet-academic/releases ) and click the "NFT" button on the Wallet's homepage.
 
 
