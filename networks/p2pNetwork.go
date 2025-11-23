@@ -11,7 +11,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/google/uuid"
 	"io"
 	"log"
 	"math/big"
@@ -19,6 +18,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 
 	"math/rand"
 
@@ -119,9 +120,9 @@ func TcpDial(context []byte, addr string) {
 				conn.(*net.TCPConn).SetKeepAlive(true)
 				global.Conn = conn
 				bytes2 := []byte("")
-				if global.Senior.Load(){
+				if global.Senior.Load() {
 					bytes2 = message.MergeMessage2("auth2", marshal)
-				}else {
+				} else {
 					bytes2 = message.MergeMessage2("auth", marshal)
 				}
 
