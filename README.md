@@ -28,7 +28,7 @@ The total supply of BrokerChain's tokens (named **BKC**) will be capped at 1.2 b
 Please follow our X (Twitter) account: https://x.com/0xBrokerChain. We share BrokerChain news and activities in this X account.
 
 ### Join our Telegram channel
-Please join our Telegram channel: https://x.com/0xBrokerChain](https://t.me/brokerchain0. 
+Please join our Telegram channel: https://t.me/brokerchain0. 
 
 ## BrokerChain Dashboard 
 
