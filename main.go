@@ -1017,6 +1017,7 @@ func main() {
 		fmt.Println("3: Query an account and its balance if given an address.")
 		fmt.Println("4: Transfer tokens to another account.")
 		fmt.Println("5: Claim BKC tokens through faucets.")
+		fmt.Println("\033[31m6: Update private/public key.\033[0m")
 		input0 := ""
 		if debug {
 			input0 = "1"
@@ -1044,6 +1045,12 @@ func main() {
 
 		if input0 == "5" {
 			handleclaim(reader)
+			fmt.Println()
+			continue
+		}
+
+		if input0 == "6" {
+			updateAccount(reader)
 			fmt.Println()
 			continue
 		}
@@ -1653,6 +1660,8 @@ func net_version(request RpcRequest) interface{} {
 
 func eth_accounts(request RpcRequest) interface{} {
 	addr := GetAddress()
+	addr = "0x" + addr
+	log.Printf("eth_accounts: %s", addr)
 	return []string{addr}
 }
 
