@@ -1,9 +1,9 @@
 package main
 
 import (
-//_ "net/http/pprof"
+	//_ "net/http/pprof"
 
-"blockEmulator/build"
+	"blockEmulator/build"
 	"blockEmulator/global"
 	"blockEmulator/networks"
 	"blockEmulator/params"
@@ -17,10 +17,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
-	"github.com/spf13/pflag"
 	"io"
 	"io/ioutil"
 	"log"
@@ -37,6 +33,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+	"github.com/spf13/pflag"
 )
 
 var (
@@ -113,6 +114,7 @@ func Post2(url string, data []byte) ([]byte, error) {
 	}
 	return body, nil
 }
+
 type QueryReq struct {
 	PublicKey string `json:"PublicKey" binding:"required"`
 	RandomStr string `json:"RandomStr" binding:"required"`
@@ -139,7 +141,6 @@ type TxReq struct {
 }
 
 var config DynamicConfig
-
 
 func GetPublicKeyFromPrivateKey(p string) string {
 	privateKey := new(big.Int)
@@ -705,7 +706,7 @@ func handleopenwallet(reader *bufio.Reader) {
 	file2.Sync()
 	file2.Close()
 
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	if runtime.GOOS == "windows" {
 		url := "http://127.0.0.1:" + strconv.Itoa(freePort)
 		cmd := "cmd"
@@ -761,12 +762,12 @@ func handlegeneratekey(reader *bufio.Reader) bool {
 }
 func handleexistprivatekey(reader *bufio.Reader) bool {
 	fmt.Println("Please enter the filename for the private key:")
-	filename:=""
-	if !debug{
+	filename := ""
+	if !debug {
 		filename, _ = reader.ReadString('\n')
 		filename = strings.TrimSpace(filename)
-	}else {
-		filename=filename1
+	} else {
+		filename = filename1
 	}
 	file, err := os.Open(filename)
 	if err != nil {
@@ -824,28 +825,30 @@ func tryjoin() bool {
 		}
 	}
 }
-//func GetBloomFilter(txs []*core.Transaction) *bitset.BitSet {
-//	bs := bitset.New(2048)
-//	for _, tx := range txs {
-//		bs.Set(utils.ModBytes(tx.TxHash, 2048))
+
+//	func GetBloomFilter(txs []*core.Transaction) *bitset.BitSet {
+//		bs := bitset.New(2048)
+//		for _, tx := range txs {
+//			bs.Set(utils.ModBytes(tx.TxHash, 2048))
+//		}
+//		return bs
 //	}
-//	return bs
-//}
-//func GetTxTreeRoot(txs []*core.Transaction) []byte {
-//	// use a memory trie database to do this, instead of disk database
-//	triedb := trie.NewDatabase(rawdb.NewMemoryDatabase())
-//	transactionTree := trie.NewEmpty(triedb)
-//	for _, tx := range txs {
-//		transactionTree.Update(tx.TxHash, []byte{0})
+//
+//	func GetTxTreeRoot(txs []*core.Transaction) []byte {
+//		// use a memory trie database to do this, instead of disk database
+//		triedb := trie.NewDatabase(rawdb.NewMemoryDatabase())
+//		transactionTree := trie.NewEmpty(triedb)
+//		for _, tx := range txs {
+//			transactionTree.Update(tx.TxHash, []byte{0})
+//		}
+//		return transactionTree.Hash().Bytes()
 //	}
-//	return transactionTree.Hash().Bytes()
-//}
 var debug = false
 var filename1 string
-//func init() {
+
+// func init() {
 //
-//
-//}
+// }
 func PrintLog(format string, v ...interface{}) {
 	timestamp := time.Now().Format("2006/01/02 15:04:05.000")
 	msg := fmt.Sprintf(format, v...)
@@ -854,16 +857,13 @@ func PrintLog(format string, v ...interface{}) {
 	log.Printf("%s   %s", millis, msg)
 }
 
-
 func main() {
-
-
 
 	//go func() {
 	//	log.Println(http.ListenAndServe("localhost:6080", nil))
 	//}()
 	go func() {
-		for  {
+		for {
 			runtime.GC()
 			time.Sleep(60 * time.Second)
 		}
@@ -893,14 +893,13 @@ func main() {
 		fmt.Println("3: Query an account and its balance if given an address.")
 		fmt.Println("4: Transfer tokens to another account.")
 		fmt.Println("5: Claim BKC tokens through faucets.")
-		input0:=""
+		input0 := ""
 		if debug {
-			input0 ="1"
-		}else {
+			input0 = "1"
+		} else {
 			input0, _ = reader.ReadString('\n')
 			input0 = strings.TrimSpace(input0)
 		}
-
 
 		if input0 == "3" {
 			handlequeryacc(reader)
@@ -915,9 +914,7 @@ func main() {
 		if input0 == "2" {
 			handleopenwallet(reader)
 			fmt.Println()
-			select {
-
-			}
+			select {}
 			continue
 		}
 
@@ -939,10 +936,10 @@ func main() {
 		fmt.Println("Please enter an option:")
 		fmt.Println("1: Generate a pair of (public/private) keys for a new account")
 		fmt.Println("2: Use the private key of an existing account")
-		input :="2"
-		if debug{
-			input ="2"
-		}else {
+		input := "2"
+		if debug {
+			input = "2"
+		} else {
 			input, _ = reader.ReadString('\n')
 			input = strings.TrimSpace(input)
 		}
@@ -953,14 +950,14 @@ func main() {
 		case "1":
 			if !handlegeneratekey(reader) {
 				break
-			}else {
+			} else {
 				flag = true
 				break
 			}
 		case "2":
 			if !handleexistprivatekey(reader) {
 				break
-			}else {
+			} else {
 				flag = true
 				break
 			}
@@ -984,7 +981,7 @@ func main() {
 		global.Senior.Store(false)
 	} else {
 		fmt.Println("Invalid input.")
-		time.Sleep(10*time.Second)
+		time.Sleep(10 * time.Second)
 		os.Exit(1)
 	}
 	//if !global.Senior.Load(){
@@ -1074,11 +1071,11 @@ func main() {
 	//}
 	log.SetOutput(os.Stdout)
 	Runhttp()
-	f:=false
+	f := false
 	global.Randomstr = uuid.New().String()
 	for {
 		PrintLog("Start trying to join BrokerChain network...")
-		for  {
+		for {
 			if !JoinPoS() {
 				time.Sleep(1 * time.Second)
 			} else {
@@ -1093,7 +1090,7 @@ func main() {
 					RandomStr: global.Randomstr,
 				}
 				m, _ := json.Marshal(beatreq)
-				for  {
+				for {
 					da, err := Post2("beat", m)
 					if err != nil {
 						fmt.Println("Sending the beat failed, please check your network: " + err.Error())
@@ -1106,11 +1103,11 @@ func main() {
 		}
 		if global.Senior.Load() {
 			PrintLog("Join a senior shard of BrokerChain network successfully.")
-		}else {
+		} else {
 			PrintLog("Join a junior shard of BrokerChain network successfully.")
 		}
 		WaitConstructShard()
-		if !build_(){
+		if !build_() {
 			continue
 		}
 		connect()
@@ -1121,71 +1118,70 @@ func main() {
 	}
 
 }
-func build_() bool{
+func build_() bool {
 
-		if len(config.NewNodeinfos) == 0 {
+	if len(config.NewNodeinfos) == 0 {
+		return false
+	}
+	maxShardId, err := strconv.Atoi(config.NewNodeinfos[len(config.NewNodeinfos)-1].ShardID)
+	if err != nil {
+		return false
+	}
+	shardNum = maxShardId + 1
+	nodeNum = len(config.NewNodeinfos)
+	shardID = maxShardId
+	for i, node := range config.NewNodeinfos {
+		if node.PublicKey == GetAddress() {
+			nodeID = i
+			break
+		}
+	}
+	params.ShardNum = shardNum
+	params.NodesInShard = nodeNum
+
+	nodes := make([]NodeInfo, 0)
+	if config.OldNodeinfos != nil {
+		nodes = append(nodes, config.OldNodeinfos...)
+	}
+	nodes = append(nodes, config.NewNodeinfos...)
+	shardid := 0
+	nodeid := -1
+	for _, node := range nodes {
+		nodeid++
+		shardidnow, err1 := strconv.Atoi(node.ShardID)
+		if err1 != nil {
 			return false
 		}
-		maxShardId, err := strconv.Atoi(config.NewNodeinfos[len(config.NewNodeinfos)-1].ShardID)
-		if err != nil {
-			return false
+		if shardidnow != shardid {
+			shardid = shardidnow
+			nodeid = 0
 		}
-		shardNum = maxShardId + 1
-		nodeNum = len(config.NewNodeinfos)
-		shardID = maxShardId
-		for i, node := range config.NewNodeinfos {
-			if node.PublicKey == GetAddress() {
-				nodeID = i
-				break
-			}
+		if params.IPmap_nodeTable[uint64(shardid)] == nil {
+			params.IPmap_nodeTable[uint64(shardid)] = make(map[uint64]string)
 		}
-		params.ShardNum = shardNum
-		params.NodesInShard = nodeNum
-
-		nodes := make([]NodeInfo, 0)
-		if config.OldNodeinfos != nil {
-			nodes = append(nodes, config.OldNodeinfos...)
+		params.IPmap_nodeTable[uint64(shardid)][uint64(nodeid)] = node.Ip + ":" + node.Port
+	}
+	//fmt.Println("has generated ipmap:")
+	for i := 0; i < shardNum; i++ {
+		for j := 0; j < nodeNum; j++ {
+			if params.IPmap_nodeTable[uint64(i)] == nil {
+				params.IPmap_nodeTable[uint64(i)] = make(map[uint64]string)
+			}
+			params.IPmap_nodeTable[uint64(i)][uint64(j)] = strconv.Itoa(i) + ":" + strconv.Itoa(j)
+			//fmt.Println("S" + strconv.Itoa(i) + "N" + strconv.Itoa(j) + ":" + params.IPmap_nodeTable[uint64(i)][uint64(j)])
 		}
-		nodes = append(nodes, config.NewNodeinfos...)
-		shardid := 0
-		nodeid := -1
-		for _, node := range nodes {
-			nodeid++
-			shardidnow, err1 := strconv.Atoi(node.ShardID)
-			if err1 != nil {
-				return false
-			}
-			if shardidnow != shardid {
-				shardid = shardidnow
-				nodeid = 0
-			}
-			if params.IPmap_nodeTable[uint64(shardid)] == nil {
-				params.IPmap_nodeTable[uint64(shardid)] = make(map[uint64]string)
-			}
-			params.IPmap_nodeTable[uint64(shardid)][uint64(nodeid)] = node.Ip + ":" + node.Port
-		}
-		//fmt.Println("has generated ipmap:")
-		for i := 0; i < shardNum; i++ {
-			for j := 0; j < nodeNum; j++ {
-				if params.IPmap_nodeTable[uint64(i)] == nil {
-					params.IPmap_nodeTable[uint64(i)] = make(map[uint64]string)
-				}
-				params.IPmap_nodeTable[uint64(i)][uint64(j)] = strconv.Itoa(i) + ":" + strconv.Itoa(j)
-				//fmt.Println("S" + strconv.Itoa(i) + "N" + strconv.Itoa(j) + ":" + params.IPmap_nodeTable[uint64(i)][uint64(j)])
-			}
-		}
+	}
 
-		params.SupervisorAddr = global.ServerHost + ":" + strconv.Itoa(38800)
-		params.IPmap_nodeTable[params.SupervisorShard] = make(map[uint64]string)
-		params.IPmap_nodeTable[params.SupervisorShard][0] = params.SupervisorAddr
+	params.SupervisorAddr = global.ServerHost + ":" + strconv.Itoa(38800)
+	params.IPmap_nodeTable[params.SupervisorShard] = make(map[uint64]string)
+	params.IPmap_nodeTable[params.SupervisorShard][0] = params.SupervisorAddr
 
-		global.ProxyServerHost = config.ProxyIp
-		//fmt.Println("proxy:", global.ProxyServerHost)
-		global.ServerForwardPort = config.ProxyPort
-		//fmt.Println("port:", global.ServerForwardPort)
+	global.ProxyServerHost = config.ProxyIp
+	//fmt.Println("proxy:", global.ProxyServerHost)
+	global.ServerForwardPort = config.ProxyPort
+	//fmt.Println("port:", global.ServerForwardPort)
 
-		return true
-
+	return true
 
 }
 
@@ -1208,14 +1204,14 @@ func connect() {
 		} else {
 			conn.(*net.TCPConn).SetKeepAlive(true)
 			global.Conn = conn
-			aa:="auth"
-			if global.Senior.Load(){
-				aa="auth2"
+			aa := "auth"
+			if global.Senior.Load() {
+				aa = "auth2"
 			}
 			networks.TcpDial(marshal, aa)
 			break
 		}
-		time.Sleep( 500*time.Millisecond )
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
@@ -1248,7 +1244,7 @@ type JoinReq2 struct {
 	RandomStr string `json:"RandomStr" binding:"required"`
 	Sign1     string `json:"Sign1" binding:"required"`
 	Sign2     string `json:"Sign2" binding:"required"`
-	R string `json:"R" binding:"required"`
+	R         string `json:"R" binding:"required"`
 }
 
 type BeatReq struct {
@@ -1265,11 +1261,11 @@ func JoinPoS() bool {
 		RandomStr: randstr,
 		Sign1:     sign1,
 		Sign2:     sign2,
-		R: global.Randomstr,
+		R:         global.Randomstr,
 	}
 	//fmt.Println(joinreq.R)
 	m, _ := json.Marshal(joinreq)
-	url1:= "join2"
+	url1 := "join2"
 	if global.Senior.Load() {
 		url1 = "join2_senior"
 	}
@@ -1296,7 +1292,7 @@ func JoinPoS() bool {
 			fmt.Println("=============********************************************************************************=============")
 			if global.Senior.Load() {
 				fmt.Println("【Stake failed】. Your account balance is not enough to join senior shard. Program will exit after 10 seconds.")
-			}else {
+			} else {
 				fmt.Println("【Stake failed】. Your account balance is not enough to join junior shard. Program will exit after 10 seconds.")
 			}
 			fmt.Println(string(data))
@@ -1454,8 +1450,8 @@ func check(arr [32]byte, difficulty int) bool {
 var C *websocket.Conn
 
 func WaitConstructShard() {
-	path:="/ws2"
-	if global.Senior.Load(){
+	path := "/ws2"
+	if global.Senior.Load() {
 		path = "/ws2_senior"
 	}
 	u := url.URL{Scheme: "ws", Host: global.ServerHost + ":" + global.ServerPort, Path: path}
@@ -1487,11 +1483,10 @@ func WaitConstructShard() {
 			//log.Printf("Received: %s", message)
 			PrintLog("Consensus gets started...\n")
 
-				if err = json.Unmarshal(message, &config); err != nil {
-					PrintLog("Unmarshal error:", err)
-					continue
-				}
-
+			if err = json.Unmarshal(message, &config); err != nil {
+				PrintLog("Unmarshal error:", err)
+				continue
+			}
 
 			//fmt.Println("config:")
 			//fmt.Println(config)
@@ -1580,7 +1575,7 @@ func eth_getBlockByNumber(request RpcRequest) interface{} {
 }
 
 func eth_chainId(request RpcRequest) interface{} {
-	return "0x1"
+	return "0x1051"
 }
 
 func net_version(request RpcRequest) interface{} {
@@ -1589,7 +1584,7 @@ func net_version(request RpcRequest) interface{} {
 
 func eth_accounts(request RpcRequest) interface{} {
 	addr := GetAddress()
-	return []string{addr}
+	return []string{"0x" + addr}
 }
 
 func eth_getBalance(request RpcRequest) interface{} {
@@ -1675,6 +1670,17 @@ func eth_getTransactionReceipt(request RpcRequest) interface{} {
 	}
 	var re RpcResponse
 	json.Unmarshal(data1, &re)
+	if re.Result != nil {
+		result, ok := re.Result.(map[string]interface{})
+		if ok {
+			if result["type"] == "0x0" {
+				result["type"] = "0x2"
+			}
+			result["logs"] = make([]interface{}, 0)
+			log.Printf("eth_getTransactionReceipt update result: %+v", result)
+			return result
+		}
+	}
 	return re.Result
 }
 func eth_getTransactionByHash(request RpcRequest) interface{} {
@@ -1697,6 +1703,16 @@ func eth_getTransactionByHash(request RpcRequest) interface{} {
 	}
 	var re RpcResponse
 	json.Unmarshal(data1, &re)
+	if re.Result != nil {
+		result, ok := re.Result.(map[string]interface{})
+		if ok {
+			if result["to"] == "0x" {
+				result["to"] = "0x0000000000000000000000000000000000000000"
+			}
+			log.Printf("eth_getTransactionByHash update result: %+v", result)
+			return result
+		}
+	}
 	return re.Result
 }
 
@@ -1892,8 +1908,8 @@ type WsReq struct {
 type DynamicConfig struct {
 	OldNodeinfos []NodeInfo `json:"OldNodeinfos" binding:"required"`
 	NewNodeinfos []NodeInfo `json:"NewNodeinfos" binding:"required"`
-	ProxyIp string `json:"ProxyIp" binding:"required"`
-	ProxyPort string `json:"ProxyPort" binding:"required"`
+	ProxyIp      string     `json:"ProxyIp" binding:"required"`
+	ProxyPort    string     `json:"ProxyPort" binding:"required"`
 }
 
 type RpcRequest struct {
@@ -2271,7 +2287,7 @@ func Runhttp() {
 	})
 
 	if global.Senior.Load() {
-		r.GET("/withdraw",func(c *gin.Context) {
+		r.GET("/withdraw", func(c *gin.Context) {
 
 		})
 	}
