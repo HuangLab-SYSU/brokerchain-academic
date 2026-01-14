@@ -15,7 +15,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"log"
 	"math/big"
@@ -25,6 +24,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/google/uuid"
 )
 
 // this func is only invoked by main node
@@ -149,7 +151,6 @@ func (p *PbftConsensusNode) Propose() {
 					return
 				}
 
-
 				p.sequenceLock.Lock()
 				p.sequenceLockFlag.Store(true)
 				//p.pl.Plog.Printf("S%dN%d get sequenceLock locked, now trying to propose...\n", p.ShardID, p.NodeID)
@@ -231,7 +232,7 @@ func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
 		//p.pl.Plog.Printf("S%dN%d : the digest is not consistent, so refuse to prepare. \n", p.ShardID, p.NodeID)
 		//p.pl.Plog.Printf("S%d : the digest is not consistent, so refuse to prepare. \n", p.ShardID)
 	} else if p.sequenceID < ppmsg.SeqID {
-		p.requestPool.Store(string(getDigest(ppmsg.RequestMsg)),  ppmsg.RequestMsg)
+		p.requestPool.Store(string(getDigest(ppmsg.RequestMsg)), ppmsg.RequestMsg)
 		p.height2Digest[ppmsg.SeqID] = string(getDigest(ppmsg.RequestMsg))
 		//p.askForLock.Lock()
 		// request the block
@@ -260,7 +261,7 @@ func (p *PbftConsensusNode) handlePrePrepare(content []byte) {
 	} else {
 		// do your operation in this interface
 		flag = p.ihm.HandleinPrePrepare(ppmsg)
-		p.requestPool.Store(string(getDigest(ppmsg.RequestMsg)),  ppmsg.RequestMsg)
+		p.requestPool.Store(string(getDigest(ppmsg.RequestMsg)), ppmsg.RequestMsg)
 		p.height2Digest[ppmsg.SeqID] = string(getDigest(ppmsg.RequestMsg))
 	}
 	flag = true
@@ -389,107 +390,107 @@ func (p *PbftConsensusNode) handlePrepare(content []byte) {
 		networks.TcpDial(msg_send, orequest.ServerNode.IPaddr)
 	}
 	//else {
-		// if needed more operations, implement interfaces
-		//p.ihm.HandleinPrepare(pmsg)
+	// if needed more operations, implement interfaces
+	//p.ihm.HandleinPrepare(pmsg)
 
-		p.set2DMap(true, string(pmsg.Digest), pmsg.SenderNode)
-		cnt := len(p.cntPrepareConfirm[string(pmsg.Digest)])
+	p.set2DMap(true, string(pmsg.Digest), pmsg.SenderNode)
+	cnt := len(p.cntPrepareConfirm[string(pmsg.Digest)])
 
-		// if the node has received 2f messages (itself included), and it haven't committed, then it commit
-		p.lock.Lock()
-		defer p.lock.Unlock()
-		if uint64(cnt) >= 2*p.malicious_nums+1 && !p.isCommitBordcast[string(pmsg.Digest)] {
-			//p.pl.Plog.Printf("S%dN%d : is going to commit\n", p.ShardID, p.NodeID)
-			//p.pl.Plog.Printf("S%d : is going to commit\n", p.ShardID)
+	// if the node has received 2f messages (itself included), and it haven't committed, then it commit
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if uint64(cnt) >= 2*p.malicious_nums+1 && !p.isCommitBordcast[string(pmsg.Digest)] {
+		//p.pl.Plog.Printf("S%dN%d : is going to commit\n", p.ShardID, p.NodeID)
+		//p.pl.Plog.Printf("S%d : is going to commit\n", p.ShardID)
 
-			request0, _ := p.requestPool.Load(string(pmsg.Digest))
-			request := request0.(*message.Request)
-			answer := ""
-			if request.RequestType != message.PartitionReq {
+		request0, _ := p.requestPool.Load(string(pmsg.Digest))
+		request := request0.(*message.Request)
+		answer := ""
+		if request.RequestType != message.PartitionReq {
 
-				block := core.DecodeB(request.Msg.Content)
+			block := core.DecodeB(request.Msg.Content)
 
-				if !global.Senior.Load(){
-					for {
-						answer1 := ""
-						uid := uuid.New().String()
-						resultChan := make(chan int, 1)
-						doneChan := make(chan bool, 1)
-						var wg sync.WaitGroup
-						maxRange := 1000000000
-						workers := runtime.NumCPU()
+			if !global.Senior.Load() {
+				for {
+					answer1 := ""
+					uid := uuid.New().String()
+					resultChan := make(chan int, 1)
+					doneChan := make(chan bool, 1)
+					var wg sync.WaitGroup
+					maxRange := 1000000000
+					workers := runtime.NumCPU()
 
-						problem := string(block.Hash)
-						blockhash_ := block.Hash
-						blockhash := convertTo32ByteArray(blockhash_)
-						if workers > 16 {
-							workers = 16
+					problem := string(block.Hash)
+					blockhash_ := block.Hash
+					blockhash := convertTo32ByteArray(blockhash_)
+					if workers > 16 {
+						workers = 16
+					}
+					if workers < 1 {
+						workers = 1
+					}
+					//workers = 1
+					wg.Add(workers)
+					perWorker := maxRange / workers
+					flag := atomic.Bool{}
+					for i := 0; i < workers; i++ {
+						start := i * perWorker
+						end := (i + 1) * perWorker
+						if i == workers-1 {
+							end = maxRange
 						}
-						if workers < 1 {
-							workers = 1
-						}
-						//workers = 1
-						wg.Add(workers)
-						perWorker := maxRange / workers
-						flag := atomic.Bool{}
-						for i := 0; i < workers; i++ {
-							start := i * perWorker
-							end := (i + 1) * perWorker
-							if i == workers-1 {
-								end = maxRange
-							}
-							if global.Senior.Load() {
-								go worker(&wg, start, end, problem, blockhash, 2, resultChan, &flag, uid)
-							}else {
-								go worker(&wg, start, end, problem, blockhash, 22, resultChan, &flag, uid)
-							}
-						}
-
-						go func() {
-							wg.Wait()
-							doneChan <- true
-							flag.Store(true)
-						}()
-						select {
-						case i := <-resultChan:
-							flag.Store(true)
-							answer1 = strconv.Itoa(i)
-							break
-						case <-doneChan:
-							//fmt.Printf("No solution found in range %d\n", maxRange)
-						}
-						if answer1 != "" {
-							answer = uid + answer1
-							//fmt.Println("answer is: " + answer)
-							break
+						if global.Senior.Load() {
+							go worker(&wg, start, end, problem, blockhash, 2, resultChan, &flag, uid)
+						} else {
+							go worker(&wg, start, end, problem, blockhash, 22, resultChan, &flag, uid)
 						}
 					}
+
+					go func() {
+						wg.Wait()
+						doneChan <- true
+						flag.Store(true)
+					}()
+					select {
+					case i := <-resultChan:
+						flag.Store(true)
+						answer1 = strconv.Itoa(i)
+						break
+					case <-doneChan:
+						//fmt.Printf("No solution found in range %d\n", maxRange)
+					}
+					if answer1 != "" {
+						answer = uid + answer1
+						//fmt.Println("answer is: " + answer)
+						break
+					}
 				}
+			}
 
-			}
-			// generate commit and broadcast
-			c := message.Commit{
-				Digest:     pmsg.Digest,
-				SeqID:      pmsg.SeqID,
-				SenderNode: p.RunningNode,
-				Answer:     answer,
-			}
-			commitByte, err := json.Marshal(c)
-			if err != nil {
-				log.Panic()
-			}
-			msg_send := message.MergeMessage(message.CCommit, commitByte)
-			if p.stopSignal.Load() {
-				return
-			}
-			networks.Broadcast(p.RunningNode.IPaddr, p.getNeighborNodes(), msg_send)
-			networks.TcpDial(msg_send, p.RunningNode.IPaddr)
-			p.isCommitBordcast[string(pmsg.Digest)] = true
-			//p.pl.Plog.Printf("S%dN%d : commit is broadcast\n", p.ShardID, p.NodeID)
-			//p.pl.Plog.Printf("S%d : commit is broadcast\n", p.ShardID)
-
-			p.pbftStage.Add(1)
 		}
+		// generate commit and broadcast
+		c := message.Commit{
+			Digest:     pmsg.Digest,
+			SeqID:      pmsg.SeqID,
+			SenderNode: p.RunningNode,
+			Answer:     answer,
+		}
+		commitByte, err := json.Marshal(c)
+		if err != nil {
+			log.Panic()
+		}
+		msg_send := message.MergeMessage(message.CCommit, commitByte)
+		if p.stopSignal.Load() {
+			return
+		}
+		networks.Broadcast(p.RunningNode.IPaddr, p.getNeighborNodes(), msg_send)
+		networks.TcpDial(msg_send, p.RunningNode.IPaddr)
+		p.isCommitBordcast[string(pmsg.Digest)] = true
+		//p.pl.Plog.Printf("S%dN%d : commit is broadcast\n", p.ShardID, p.NodeID)
+		//p.pl.Plog.Printf("S%d : commit is broadcast\n", p.ShardID)
+
+		p.pbftStage.Add(1)
+	}
 	//}
 }
 
@@ -524,7 +525,6 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 	if cmsg.SeqID < p.sequenceID || p.view.Load() != curView {
 		return
 	}
-
 
 	p.set2DMap2(string(cmsg.Digest), cmsg.SenderNode, cmsg.Answer)
 	//p.set2DMap(false,string(cmsg.Digest), cmsg.SenderNode)
@@ -572,7 +572,7 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 			p.ihm.HandleinCommit(cmsg)
 
 			if uint64(p.view.Load()) == p.NodeID {
-				request0,_ := p.requestPool.Load(string(cmsg.Digest))
+				request0, _ := p.requestPool.Load(string(cmsg.Digest))
 				request := request0.(*message.Request)
 				m3 := make([]string, 0)
 				m4 := make([]string, 0)
@@ -594,7 +594,7 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 							m3 = append(m3, s1)
 							m4 = append(m4, v)
 						}
-					}else {
+					} else {
 						for k, v := range m2 {
 							if len(v) != 0 && v != "" {
 								s_ := string(block1.Hash) + v
@@ -611,12 +611,11 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 						}
 					}
 
-
 				}
 				root := hex.EncodeToString(p.CurChain.CurrentBlock.Header.StateRoot)
 				uid := uuid.New().String()
 
-				r0,_ := p.requestPool.Load(string(cmsg.Digest))
+				r0, _ := p.requestPool.Load(string(cmsg.Digest))
 				r := r0.(*message.Request)
 				if r.RequestType != message.PartitionReq {
 					block := core.DecodeB(r.Msg.Content)
@@ -667,7 +666,7 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 
 		// if this node is a main node, then unlock the sequencelock
 		//if p.NodeID == uint64(p.view.Load()) && p.sequenceLockFlag.Load(){
-		if p.NodeID == uint64(p.view.Load()) && p.sequenceLockFlag.Load(){
+		if p.NodeID == uint64(p.view.Load()) && p.sequenceLockFlag.Load() {
 			p.sequenceLock.Unlock()
 			p.sequenceLockFlag.Store(false)
 			//p.pl.Plog.Printf("S%dN%d get sequenceLock unlocked...\n", p.ShardID, p.NodeID)
@@ -675,10 +674,25 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 		}
 	}
 }
-func SignECDSA(private *big.Int, data string) (string, string, error) {
+func SignECDSA_v2(private *big.Int, data string) (string, string, error) {
 	privateKey := &ecdsa.PrivateKey{}
 	privateKey.Curve = elliptic.P256()
 	privateKey.D = private
+	hash := sha256.Sum256([]byte(data))
+	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
+	if err != nil {
+		return "", "", err
+	}
+	r1 := hex.EncodeToString(r.Bytes())
+	s1 := hex.EncodeToString(s.Bytes())
+	return r1, s1, nil
+}
+
+func SignECDSA(private *big.Int, data string) (string, string, error) {
+	privateKey, err := crypto.ToECDSA(private.Bytes())
+	if err != nil {
+		log.Fatalf("to ECDSA failed: %v", err)
+	}
 	hash := sha256.Sum256([]byte(data))
 	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
 	if err != nil {
@@ -718,18 +732,18 @@ func GetRandStrSign() (string, [32]byte) {
 }
 
 type ReportBlockReq struct {
-	PublicKey string              `json:"PublicKey" binding:"required"`
-	RandomStr string              `json:"RandomStr" binding:"required"`
-	Sign1     string              `json:"Sign1" binding:"required"`
-	Sign2     string              `json:"Sign2" binding:"required"`
-	IsLeader  string              `json:"IsLeader" binding:"required"`
-	Root      string              `json:"Root" binding:"required"`
-	Signs     []string            `json:"Signs" binding:"required"`
-	Signs2    []string            `json:"Signs2" `
-	BlockHash []byte              `json:"BlockHash" `
+	PublicKey    string              `json:"PublicKey" binding:"required"`
+	RandomStr    string              `json:"RandomStr" binding:"required"`
+	Sign1        string              `json:"Sign1" binding:"required"`
+	Sign2        string              `json:"Sign2" binding:"required"`
+	IsLeader     string              `json:"IsLeader" binding:"required"`
+	Root         string              `json:"Root" binding:"required"`
+	Signs        []string            `json:"Signs" binding:"required"`
+	Signs2       []string            `json:"Signs2" `
+	BlockHash    []byte              `json:"BlockHash" `
 	PreBlockHash []byte              `json:"PreBlockHash" `
-	Txs       []*core.Transaction `json:"Txs"`
-	ShardId uint64 `json:"ShardId" binding:"required"`
+	Txs          []*core.Transaction `json:"Txs"`
+	ShardId      uint64              `json:"ShardId" binding:"required"`
 }
 
 // this func is only invoked by the main node,
@@ -795,7 +809,7 @@ func (p *PbftConsensusNode) handleSendOldSeq(content []byte) {
 	if err != nil {
 		log.Panic()
 	}
-	p.pl.Plog.Printf("S%d : has received the SendOldMessage message\n", p.ShardID, )
+	p.pl.Plog.Printf("S%d : has received the SendOldMessage message\n", p.ShardID)
 
 	// implement interface for new consensus
 	p.ihm.HandleforSequentialRequest(som)
@@ -834,7 +848,7 @@ func (p *PbftConsensusNode) handleSendOldSeq(content []byte) {
 				}
 				networks.Broadcast(p.RunningNode.IPaddr, p.getNeighborNodes(), msg_send)
 				//p.pl.Plog.Printf("S%dN%d : has broadcast the prepare message \n", p.ShardID, p.NodeID)
-				p.pl.Plog.Printf("S%d : has broadcast the prepare message \n", p.ShardID, )
+				p.pl.Plog.Printf("S%d : has broadcast the prepare message \n", p.ShardID)
 			}
 		}
 	}

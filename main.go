@@ -1225,7 +1225,8 @@ func build_() bool {
 	global.ProxyServerHost = config.ProxyIp
 	//fmt.Println("proxy:", global.ProxyServerHost)
 	global.ServerForwardPort = config.ProxyPort
-	//fmt.Println("port:", global.ServerForwardPort)
+
+	log.Printf("proxy: %v, port: %v", global.ProxyServerHost, global.ServerForwardPort)
 
 	return true
 
