@@ -7,17 +7,14 @@ import (
 	"blockEmulator/networks"
 	"blockEmulator/params"
 	"blockEmulator/shard"
+	"blockEmulator/utils"
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	rand2 "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"math/big"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -25,7 +22,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 )
 
@@ -625,7 +621,7 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 					} else {
 						thedata = thedata + "false"
 					}
-					sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+					sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 					report := ReportBlockReq{
 						PublicKey:    global.PublicKey,
 						RandomStr:    uid,
@@ -673,34 +669,6 @@ func (p *PbftConsensusNode) handleCommit(content []byte) {
 			//p.pl.Plog.Printf("S%d get sequenceLock unlocked...\n", p.ShardID)
 		}
 	}
-}
-func SignECDSA_v2(private *big.Int, data string) (string, string, error) {
-	privateKey := &ecdsa.PrivateKey{}
-	privateKey.Curve = elliptic.P256()
-	privateKey.D = private
-	hash := sha256.Sum256([]byte(data))
-	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
-	if err != nil {
-		return "", "", err
-	}
-	r1 := hex.EncodeToString(r.Bytes())
-	s1 := hex.EncodeToString(s.Bytes())
-	return r1, s1, nil
-}
-
-func SignECDSA(private *big.Int, data string) (string, string, error) {
-	privateKey, err := crypto.ToECDSA(private.Bytes())
-	if err != nil {
-		log.Fatalf("to ECDSA failed: %v", err)
-	}
-	hash := sha256.Sum256([]byte(data))
-	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
-	if err != nil {
-		return "", "", err
-	}
-	r1 := hex.EncodeToString(r.Bytes())
-	s1 := hex.EncodeToString(s.Bytes())
-	return r1, s1, nil
 }
 
 func Post(url string, data []byte) ([]byte, error) {
