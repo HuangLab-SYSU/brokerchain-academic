@@ -4,22 +4,16 @@ import (
 	"blockEmulator/global"
 	"blockEmulator/message"
 	"blockEmulator/params"
+	"blockEmulator/utils"
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	rand2 "crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"io"
 	"log"
-	"math/big"
 	"net"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 
 	"math/rand"
@@ -64,37 +58,6 @@ type ConReq struct {
 	Sign2     string `json:"Sign2" binding:"required"`
 }
 
-func SignECDSA_v2(private *big.Int, data string) (string, string, error) {
-	log.Printf("SignECDSA: priv:%v, data:%v \n", private.String(), data)
-	privateKey := &ecdsa.PrivateKey{}
-	privateKey.Curve = elliptic.P256()
-	privateKey.D = private
-	hash := sha256.Sum256([]byte(data))
-	log.Printf("SignECDSA:rand2.Reader:%v, privateKey:%v, hash[:]:%v \n", rand2.Reader, privateKey, hash[:])
-	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
-	if err != nil {
-		return "", "", err
-	}
-	r1 := hex.EncodeToString(r.Bytes())
-	s1 := hex.EncodeToString(s.Bytes())
-	return r1, s1, nil
-}
-
-func SignECDSA(private *big.Int, data string) (string, string, error) {
-	privateKey, err := crypto.ToECDSA(private.Bytes())
-	if err != nil {
-		log.Fatalf("to ECDSA failed: %v", err)
-	}
-	hash := sha256.Sum256([]byte(data))
-	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
-	if err != nil {
-		return "", "", err
-	}
-	r1 := hex.EncodeToString(r.Bytes())
-	s1 := hex.EncodeToString(s.Bytes())
-	return r1, s1, nil
-}
-
 var Lock sync.Mutex
 var lastbeattime = time.Now()
 
@@ -120,7 +83,7 @@ func TcpDial(context []byte, addr string) {
 		}
 		for {
 			randstr := uuid.New().String()
-			sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
+			sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, randstr)
 			conreq := ConReq{
 				PublicKey: global.PublicKey,
 				RandomStr: randstr,

@@ -2,15 +2,51 @@ package utils
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
+	rand2 "crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"log"
+	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/crypto/sha3"
 )
+
+func SignECDSA(private *big.Int, data string) (string, string, error) {
+	privateKey, err := crypto.ToECDSA(private.Bytes())
+	if err != nil {
+		log.Fatalf("to ECDSA failed: %v", err)
+	}
+	hash := sha256.Sum256([]byte(data))
+	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
+	if err != nil {
+		return "", "", err
+	}
+	r1 := hex.EncodeToString(r.Bytes())
+	s1 := hex.EncodeToString(s.Bytes())
+	return r1, s1, nil
+}
+
+func SignECDSA_v2(private *big.Int, data string) (string, string, error) {
+	privateKey := &ecdsa.PrivateKey{}
+	privateKey.Curve = elliptic.P256()
+	privateKey.D = private
+	x, y := elliptic.P256().ScalarBaseMult(private.Bytes())
+	privateKey.X = x
+	privateKey.Y = y
+	hash := sha256.Sum256([]byte(data))
+	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
+	if err != nil {
+		return "", "", err
+	}
+	r1 := hex.EncodeToString(r.Bytes())
+	s1 := hex.EncodeToString(s.Bytes())
+	return r1, s1, nil
+}
 
 // keccak256 helper
 func keccak256(data []byte) []byte {

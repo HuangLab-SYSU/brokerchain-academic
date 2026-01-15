@@ -180,36 +180,6 @@ func GetPublicKeyFromPrivateKey_old(p string) string {
 	return hex.EncodeToString(pubKeyBytes)
 }
 
-func SignECDSA_v2(private *big.Int, data string) (string, string, error) {
-	privateKey := &ecdsa.PrivateKey{}
-	privateKey.Curve = elliptic.P256()
-	privateKey.D = private
-	x, y := elliptic.P256().ScalarBaseMult(private.Bytes())
-	privateKey.X = x
-	privateKey.Y = y
-	hash := sha256.Sum256([]byte(data))
-	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
-	if err != nil {
-		return "", "", err
-	}
-	r1 := hex.EncodeToString(r.Bytes())
-	s1 := hex.EncodeToString(s.Bytes())
-	return r1, s1, nil
-}
-func SignECDSA(private *big.Int, data string) (string, string, error) {
-	privateKey, err := crypto.ToECDSA(private.Bytes())
-	if err != nil {
-		log.Fatalf("to ECDSA failed: %v", err)
-	}
-	hash := sha256.Sum256([]byte(data))
-	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
-	if err != nil {
-		return "", "", err
-	}
-	r1 := hex.EncodeToString(r.Bytes())
-	s1 := hex.EncodeToString(s.Bytes())
-	return r1, s1, nil
-}
 func GetAddress() string {
 	privKeyImported, err := crypto.ToECDSA(global.PrivateKeyBigInt.Bytes())
 	if err != nil {
@@ -308,7 +278,7 @@ func handletransfer(reader *bufio.Reader) {
 
 	rands := uuid.New().String()
 	thedata := rands + GetAddress()
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 	qreq := QueryReq{
 		PublicKey: global.PublicKey,
@@ -359,7 +329,7 @@ func handletransfer(reader *bufio.Reader) {
 
 	randstr := uuid.New().String()
 	thedata1 := randstr + to + val + fee
-	sign21, sign22, _ := SignECDSA(global.PrivateKeyBigInt, thedata1)
+	sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
 
 	qreq1 := TxReq{
 		PublicKey: global.PublicKey,
@@ -409,7 +379,7 @@ func handleclaim(reader *bufio.Reader) {
 	file.Close()
 
 	randstr := uuid.New().String()
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, randstr)
 	claimreq := ClaimReq{
 		PublicKey: global.PublicKey,
 		RandomStr: randstr,
@@ -645,7 +615,7 @@ func handleopenwallet(reader *bufio.Reader) {
 	r.GET("/api/balance", func(c *gin.Context) {
 		rands := uuid.New().String()
 		thedata := rands + GetAddress()
-		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+		sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 		qreq := QueryReq{
 			PublicKey: global.PublicKey,
@@ -698,7 +668,7 @@ func handleopenwallet(reader *bufio.Reader) {
 
 		rands := uuid.New().String()
 		thedata := rands + GetAddress()
-		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+		sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 		qreq := QueryReq{
 			PublicKey: global.PublicKey,
@@ -736,7 +706,7 @@ func handleopenwallet(reader *bufio.Reader) {
 			thedata1 = randstr + to + request.Amount + request.Fee
 		}
 
-		sign21, sign22, _ := SignECDSA(global.PrivateKeyBigInt, thedata1)
+		sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
 
 		qreq1 := TxReq{
 			PublicKey: global.PublicKey,
@@ -1019,10 +989,15 @@ func main() {
 		fmt.Println("5: Claim BKC tokens through faucets.")
 		fmt.Println("\033[31m6: Update private/public key.\033[0m")
 		input0 := ""
+		var errInp error
 		if debug {
 			input0 = "1"
 		} else {
-			input0, _ = reader.ReadString('\n')
+			input0, errInp = reader.ReadString('\n')
+			if errInp != nil {
+				fmt.Println(errInp)
+				break
+			}
 			input0 = strings.TrimSpace(input0)
 		}
 
@@ -1093,7 +1068,7 @@ func main() {
 				break
 			}
 		default:
-			fmt.Println("Invalid input.")
+			fmt.Printf("Invalid input. %v \n", input)
 			fmt.Println()
 			continue
 		}
@@ -1235,7 +1210,7 @@ func build_() bool {
 func connect() {
 	for {
 		randstr := uuid.New().String()
-		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
+		sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, randstr)
 		getproblemreq := ConReq{
 			PublicKey: global.PublicKey,
 			RandomStr: randstr,
@@ -1264,7 +1239,7 @@ func connect() {
 
 func GetRandStrSign() (string, string, string) {
 	uid := uuid.New().String()
-	r, s, _ := SignECDSA(global.PrivateKeyBigInt, uid)
+	r, s, _ := utils.SignECDSA(global.PrivateKeyBigInt, uid)
 	return uid, r, s
 }
 
@@ -1302,7 +1277,7 @@ type BeatReq struct {
 func JoinPoS() bool {
 	randstr := uuid.New().String()
 	thedata := randstr
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	joinreq := JoinReq2{
 		PublicKey: global.PublicKey,
 		RandomStr: randstr,
@@ -1362,7 +1337,7 @@ func Join(answer string) bool {
 	}
 	Ip := "127.0.0.1"
 	thedata := randstr
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	joinreq := JoinReq{
 		PublicKey: global.PublicKey,
 		RandomStr: randstr,
@@ -1394,7 +1369,7 @@ func Join(answer string) bool {
 
 func GetProblem() (string, string, error) {
 	randstr := uuid.New().String()
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, randstr)
 	getproblemreq := GetProblemReq{
 		PublicKey: global.PublicKey,
 		RandomStr: randstr,
@@ -1546,7 +1521,7 @@ func WaitConstructShard() {
 	}()
 
 	randstr := uuid.New().String()
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, randstr)
 	req := WsReq{
 		PublicKey: global.PublicKey,
 		RandomStr: randstr,
@@ -1601,7 +1576,7 @@ func eth_getBlockByHash(request RpcRequest) interface{} {
 	}
 	rands := uuid.New().String()
 	thedata := rands + number
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 	req := GetBlockByNumReq{
 		PublicKey: global.PublicKey,
@@ -1631,7 +1606,7 @@ func eth_getBlockByNumber(request RpcRequest) interface{} {
 	}
 	rands := uuid.New().String()
 	thedata := rands + number
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 	req := GetBlockByNumReq{
 		PublicKey: global.PublicKey,
@@ -1670,7 +1645,7 @@ func eth_getBalance(request RpcRequest) interface{} {
 	UUID := request.Params[0].(string)[2:]
 	rands := uuid.New().String()
 	thedata := rands + UUID
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 	qreq := QueryReq{
 		PublicKey: global.PublicKey,
@@ -1709,7 +1684,7 @@ func eth_getCode(request RpcRequest) interface{} {
 	UUID := request.Params[0].(string)[2:]
 	rr := uuid.New().String()
 	thedata := rr + UUID
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	req := GetCodeReq{
 		PublicKey: global.PublicKey,
 		RandomStr: rr,
@@ -1732,7 +1707,7 @@ func eth_getTransactionReceipt(request RpcRequest) interface{} {
 	UUID := request.Params[0].(string)[2:]
 	rr := uuid.New().String()
 	thedata := rr + UUID
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	req := GetTransactionReceiptReq{
 		PublicKey: global.PublicKey,
 		RandomStr: rr,
@@ -1754,7 +1729,7 @@ func eth_getTransactionByHash(request RpcRequest) interface{} {
 	UUID := request.Params[0].(string)[2:]
 	rr := uuid.New().String()
 	thedata := rr + UUID
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	req := GetTXByHashReq{
 		PublicKey: global.PublicKey,
 		RandomStr: rr,
@@ -1776,7 +1751,7 @@ func eth_getTransactionByHash(request RpcRequest) interface{} {
 func eth_blockNumber(request RpcRequest) interface{} {
 	rr := uuid.New().String()
 	thedata := rr
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 	req := GetBlockNumReq{
 		PublicKey: global.PublicKey,
@@ -1816,7 +1791,7 @@ func eth_call(request RpcRequest) interface{} {
 	}
 	rr := uuid.New().String()
 	thedata := to + input1 + value + rr
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 	req := CallContractReq{
 		PublicKey: global.PublicKey,
@@ -1867,7 +1842,7 @@ func eth_sendTransaction(request RpcRequest) (interface{}, error) {
 	rr := uuid.New().String()
 	thedata := to + input1 + value + gas + rr
 
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	req := SendContractReq{
 		PublicKey: global.PublicKey,
 		To:        to,
@@ -1987,7 +1962,7 @@ func eth_estimateGas(request RpcRequest) interface{} {
 	}
 	rr := uuid.New().String()
 	thedata := to + input1 + value + rr
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	req := EstContractReq{
 		PublicKey: global.PublicKey,
 		To:        to,
@@ -2327,7 +2302,7 @@ func Runhttp() {
 	r.GET("/api/balance", func(c *gin.Context) {
 		rands := uuid.New().String()
 		thedata := rands + GetAddress()
-		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+		sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 		qreq := QueryReq{
 			PublicKey: global.PublicKey,
@@ -2374,7 +2349,7 @@ func Runhttp() {
 
 		rands := uuid.New().String()
 		thedata := rands + GetAddress()
-		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+		sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 		qreq := QueryReq{
 			PublicKey: global.PublicKey,
@@ -2412,7 +2387,7 @@ func Runhttp() {
 			thedata1 = randstr + to + request.Amount + request.Fee
 		}
 
-		sign21, sign22, _ := SignECDSA(global.PrivateKeyBigInt, thedata1)
+		sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
 
 		qreq1 := TxReq{
 			PublicKey: global.PublicKey,
