@@ -10,9 +10,6 @@ import (
 	"blockEmulator/utils"
 	"bufio"
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	rand2 "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -146,38 +143,36 @@ type TxReq struct {
 
 var config DynamicConfig
 
-func GetPublicKeyFromPrivateKey(p string) string {
+func IsEthPrivateKeyHex(priv string) bool {
+	if strings.HasPrefix(priv, "0x") {
+		priv = priv[2:]
+	}
+
+	if len(priv) != 64 {
+		return false
+	}
+
+	_, err := hex.DecodeString(priv)
+	return err == nil
+}
+
+func GetPublicKeyFromPrivateKey(p string) (string, error) {
+	p = strings.TrimSpace(p)
+	if !IsEthPrivateKeyHex(p) {
+		fmt.Printf("invalid private key: %v \n", p)
+		return "", errors.New("invalid private key")
+	}
 	privateKey := new(big.Int)
 	privateKey.SetString(p, 16)
 	privKeyImported, err := crypto.ToECDSA(privateKey.Bytes())
 	if err != nil {
-		log.Fatalf("to ECDSA failed: %v", err)
+		fmt.Printf("invalid private key: %v \n", p)
+		return "", err
 	}
 	// 2. 生成公钥
 	publicKey := privKeyImported.PublicKey
 	publicKeyBytes := crypto.FromECDSAPub(&publicKey)
-	return hex.EncodeToString(publicKeyBytes)
-}
-
-func GetPublicKeyFromPrivateKey_old(p string) string {
-	if utils.IsHex(p) {
-		privateKey := new(big.Int)
-		privateKey.SetString(p, 16)
-		privKeyImported, err := crypto.ToECDSA(privateKey.Bytes())
-		if err != nil {
-			log.Fatalf("to ECDSA failed: %v", err)
-		}
-		// 2. 生成公钥
-		publicKey := privKeyImported.PublicKey
-		publicKeyBytes := crypto.FromECDSAPub(&publicKey)
-		return hex.EncodeToString(publicKeyBytes)
-	}
-
-	privateKey := new(big.Int)
-	privateKey.SetString(p, 10)
-	x, y := elliptic.P256().ScalarBaseMult(privateKey.Bytes())
-	pubKeyBytes := elliptic.MarshalCompressed(elliptic.P256(), x, y)
-	return hex.EncodeToString(pubKeyBytes)
+	return hex.EncodeToString(publicKeyBytes), nil
 }
 
 func GetAddress() string {
@@ -272,7 +267,10 @@ func handletransfer(reader *bufio.Reader) {
 	content := string(data)
 	global.PrivateKey = content
 	global.PrivateKeyBigInt.SetString(global.PrivateKey, 10)
-	global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	if err != nil {
+		return
+	}
 
 	file.Close()
 
@@ -375,7 +373,10 @@ func handleclaim(reader *bufio.Reader) {
 	content := string(data)
 	global.PrivateKey = content
 	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
-	global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	if err != nil {
+		return
+	}
 	file.Close()
 
 	randstr := uuid.New().String()
@@ -423,16 +424,16 @@ func handleopenwallet(reader *bufio.Reader) {
 	// 将字节切片转换为字符串并打印
 	content := string(data)
 
-	if utils.IsHex(content) {
-		global.PrivateKey = content
-		global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
-		global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
-		fmt.Println("private key is:", global.PrivateKey)
-	} else {
-		global.PrivateKey = content
-		global.PrivateKeyBigInt.SetString(global.PrivateKey, 10)
-		global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	global.PrivateKey = content
+	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
+	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	if err != nil {
+		updateErr := updateAccountAuto(filename)
+		if updateErr != nil {
+			return
+		}
 	}
+	fmt.Println("private key is:", global.PrivateKey)
 
 	file.Close()
 
@@ -769,49 +770,8 @@ func handleopenwallet(reader *bufio.Reader) {
 	//}
 
 }
+
 func handlegeneratekey(reader *bufio.Reader) bool {
-	fmt.Println("Please enter the filename to save the generated private key:")
-	filename, _ := reader.ReadString('\n')
-	filename = strings.TrimSpace(filename)
-	_, err2 := os.Stat(filename)
-	if !os.IsNotExist(err2) {
-		fmt.Println("The file is already exists. Please enter a different filename.")
-		time.Sleep(3 * time.Second)
-		return false
-	}
-
-	PrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand2.Reader)
-	if err != nil {
-		fmt.Println("Failed to generate public/private keys:", err)
-		return false
-	}
-	//fmt.Printf("Public key generated: %s\n", publicKey)
-	if len(PrivateKey.D.String()) >= 74 {
-		fmt.Println("Private key generated: ", PrivateKey.D.String()[:4]+"***********************"+PrivateKey.D.String()[74:])
-	}
-	global.PrivateKey = PrivateKey.D.String()
-	global.PrivateKeyBigInt.SetString(global.PrivateKey, 10)
-	global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
-
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		fmt.Println(err)
-		time.Sleep(3 * time.Second)
-		return false
-	}
-
-	content := PrivateKey.D.String()
-	_, err = file.Write([]byte(content))
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	fmt.Println("The private key is successfully saved to file:" + filename)
-	file.Close()
-	return true
-}
-
-func handlegeneratekey_v2(reader *bufio.Reader) bool {
 	fmt.Println("Please enter the filename to save the generated private key:")
 	filename, _ := reader.ReadString('\n')
 	filename = strings.TrimSpace(filename)
@@ -832,7 +792,10 @@ func handlegeneratekey_v2(reader *bufio.Reader) bool {
 	}
 	global.PrivateKey = hex.EncodeToString(privateKey.D.Bytes())
 	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
-	global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	if err != nil {
+		return false
+	}
 
 	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -874,12 +837,21 @@ func handleexistprivatekey(reader *bufio.Reader) bool {
 		time.Sleep(3 * time.Second)
 		return false
 	}
+	file.Close()
 
 	// 将字节切片转换为字符串并打印
 	content := string(data)
 	global.PrivateKey = content
 	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
-	global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	if err != nil {
+		updateErr := updateAccountAuto(filename)
+		if updateErr != nil {
+			return false
+		} else {
+			return true
+		}
+	}
 
 	file.Close()
 	return true
@@ -1054,7 +1026,7 @@ func main() {
 		flag := false
 		switch input {
 		case "1":
-			if !handlegeneratekey_v2(reader) {
+			if !handlegeneratekey(reader) {
 				break
 			} else {
 				flag = true
