@@ -266,10 +266,13 @@ func handletransfer(reader *bufio.Reader) {
 	// 将字节切片转换为字符串并打印
 	content := string(data)
 	global.PrivateKey = content
-	global.PrivateKeyBigInt.SetString(global.PrivateKey, 10)
+	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
 	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
 	if err != nil {
-		return
+		updateErr := updateAccountAuto(filename)
+		if updateErr != nil {
+			return
+		}
 	}
 
 	file.Close()
@@ -315,6 +318,9 @@ func handletransfer(reader *bufio.Reader) {
 		fmt.Println("The recipient's account address cannot be the same as the payer's. Please re-enter the recipient's account address:")
 		to, _ = reader.ReadString('\n')
 		to = strings.TrimSpace(to)
+	}
+	if strings.HasPrefix(to, "0x") {
+		to = to[2:]
 	}
 
 	fmt.Println("Please enter the amount to transfer:")
@@ -375,7 +381,10 @@ func handleclaim(reader *bufio.Reader) {
 	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
 	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
 	if err != nil {
-		return
+		updateErr := updateAccountAuto(filename)
+		if updateErr != nil {
+			return
+		}
 	}
 	file.Close()
 
@@ -679,6 +688,10 @@ func handleopenwallet(reader *bufio.Reader) {
 			UUID:      GetAddress(),
 		}
 		to := request.RecipientAddress
+		if strings.HasPrefix(to, "0x") {
+			to = to[2:]
+		}
+
 		m, _ := json.Marshal(qreq)
 		data1, err := Post("query-g", m)
 		if err != nil {
@@ -848,8 +861,6 @@ func handleexistprivatekey(reader *bufio.Reader) bool {
 		updateErr := updateAccountAuto(filename)
 		if updateErr != nil {
 			return false
-		} else {
-			return true
 		}
 	}
 
