@@ -455,8 +455,11 @@ func handleopenwallet(reader *bufio.Reader) {
 	//gin.DefaultErrorWriter = io.Discard
 	r := gin.Default()
 	r.Use(CorsConfig())
-	// 加载 HTML 模板
-	r.LoadHTMLGlob("html/*")
+	//// 加载 HTML 模板
+	//r.LoadHTMLGlob("html/*")
+
+	loadTemplates(r)
+
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
@@ -2141,8 +2144,8 @@ func Runhttp() {
 	gin.DefaultWriter = io.MultiWriter(f)
 	r := gin.Default()
 	r.Use(CorsConfig())
-	r.LoadHTMLGlob("html/*")
-
+	//r.LoadHTMLGlob("html/*")
+	loadTemplates(r)
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
