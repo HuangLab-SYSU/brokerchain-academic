@@ -1,5 +1,5 @@
 # build-all.ps1
-# 在 Windows 上交叉编译 Go 项目为 Windows、Linux、macOS 三个平台
+# 在 Windows 上交叉编译 Go 项目为 Windows、Linux、macOS 三个平台，并优化文件大小
 
 $ErrorActionPreference = "Stop"
 
@@ -28,7 +28,7 @@ foreach ($target in $targets) {
     $outputPath = Join-Path $outputDir $binName
 
     Write-Host "📦 编译: $binName" -ForegroundColor Cyan
-    go build -o $outputPath .
+    go build -ldflags="-s -w" -trimpath -o $outputPath .
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host "❌ 编译失败: $binName" -ForegroundColor Red
