@@ -158,6 +158,9 @@ func IsEthPrivateKeyHex(priv string) bool {
 
 func GetPublicKeyFromPrivateKey(p string) (string, error) {
 	p = strings.TrimSpace(p)
+	if strings.HasPrefix(p, "0x") {
+		p = p[2:]
+	}
 	if !IsEthPrivateKeyHex(p) {
 		fmt.Printf("invalid private key: %v \n", p)
 		return "", errors.New("invalid private key")
@@ -235,13 +238,13 @@ func handlequeryacc(reader *bufio.Reader) {
 		return
 	}
 	fmt.Println()
-	Unit := new(big.Float)
-	Unit.SetString(global.Uint)
-	bf := new(big.Float)
-	bf.SetString(r.Balance)
-	bf1 := new(big.Float)
-	bf1.Quo(bf, Unit)
-	fmt.Println("Your account address is:", r.AccountAddr, ",the balance of your account is:", bf1.Text('f', -1))
+
+	val, err := utils.WeiToEthTrim(r.Balance)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("Your account address is:", r.AccountAddr, ",the balance of your account is:", val)
 	return
 }
 
@@ -302,13 +305,12 @@ func handletransfer(reader *bufio.Reader) {
 		return
 	}
 	fmt.Println()
-	Unit := new(big.Float)
-	Unit.SetString(global.Uint)
-	bf := new(big.Float)
-	bf.SetString(r.Balance)
-	bf1 := new(big.Float)
-	bf1.Quo(bf, Unit)
-	fmt.Println("Your account address is:", r.AccountAddr, ",the balance of your account is:", bf1.Text('f', -1))
+	valEth, err := utils.WeiToEthTrim(r.Balance)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("Your account address is:", r.AccountAddr, ",the balance of your account is:", valEth)
 
 	fmt.Println("Please enter the address of recipient's account:")
 	to, _ := reader.ReadString('\n')
@@ -641,21 +643,19 @@ func handleopenwallet(reader *bufio.Reader) {
 			return
 		}
 
-		var r ReturnAccountState
-		err = json.Unmarshal(data1, &r)
+		var res ReturnAccountState
+		err = json.Unmarshal(data1, &res)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		Unit := new(big.Float)
-		Unit.SetString(global.Uint)
-		bf := new(big.Float)
-		bf.SetString(r.Balance)
-		bf1 := new(big.Float)
-		bf1.Quo(bf, Unit)
+		val, err := utils.WeiToEthTrim(res.Balance)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
-		//fmt.Println("账户地址是:", r.AccountAddr, ",余额是:"+bf1.Text('f', -1))
-		c.JSON(http.StatusOK, gin.H{"balance": bf1.Text('f', -1), "addr": r.AccountAddr})
+		c.JSON(http.StatusOK, gin.H{"balance": val, "addr": res.AccountAddr})
 	})
 
 	// 定义转账的 API 端点
@@ -2307,14 +2307,12 @@ func Runhttp() {
 			fmt.Println(err)
 			return
 		}
-		Unit := new(big.Float)
-		Unit.SetString(global.Uint)
-		bf := new(big.Float)
-		bf.SetString(r.Balance)
-		bf1 := new(big.Float)
-		bf1.Quo(bf, Unit)
-
-		c.JSON(http.StatusOK, gin.H{"balance": bf1.Text('f', -1), "addr": r.AccountAddr})
+		val, err := utils.WeiToEthTrim(r.Balance)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"balance": val, "addr": r.AccountAddr})
 	})
 
 	// 定义转账的 API 端点

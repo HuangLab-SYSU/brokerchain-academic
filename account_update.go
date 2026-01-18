@@ -2,6 +2,7 @@ package main
 
 import (
 	"blockEmulator/global"
+	"blockEmulator/utils"
 	"bufio"
 	"crypto/elliptic"
 	"crypto/sha256"
@@ -260,11 +261,11 @@ func getAccountBalance(address string) string {
 		fmt.Println(err)
 		return "0"
 	}
-	Unit := new(big.Float)
-	Unit.SetString(global.Uint)
-	bf := new(big.Float)
-	bf.SetString(r.Balance)
-	bf1 := new(big.Float)
-	bf1.Quo(bf, Unit)
-	return bf1.Text('f', -1)
+
+	val, err := utils.WeiToEthTrim(r.Balance)
+	if err != nil {
+		fmt.Println(err)
+		return "0"
+	}
+	return val
 }
