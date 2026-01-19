@@ -16,7 +16,8 @@ if (!(Test-Path $outputDir)) {
 $targets = @(
     @{ goos = "windows"; goarch = "amd64"; suffix = ".exe" },
     @{ goos = "linux";   goarch = "amd64"; suffix = ""     },
-    @{ goos = "darwin";  goarch = "amd64"; suffix = ""     }
+    @{ goos = "darwin";  goarch = "amd64"; suffix = ""     },
+    @{ goos = "darwin";   goarch = "arm64"; suffix = "" }
 )
 
 Write-Host "🚀 开始构建项目: $projectName" -ForegroundColor Green

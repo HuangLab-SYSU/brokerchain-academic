@@ -23,7 +23,7 @@ var MyIp = ""
 
 var Conn net.Conn
 
-var Version = "1.0.4"
+var Version = "1.1.0"
 
 var Senior atomic.Bool
 var Randomstr = ""
