@@ -32,7 +32,7 @@ Please join our Telegram channel: https://t.me/brokerchain0.
 
 ## BrokerChain Dashboard 
 
-Users can access the **BrokerChain Dashboard** at http://academic.broker-chain.com:56741/.
+Users can access the **BrokerChain Dashboard** at https://dash.broker-chain.com/.
 
 - **View Minted Token Quantities**: Check the total number of tokens that have been minted.
 - **Check Account's Balance**: Query the balance of any given account address.

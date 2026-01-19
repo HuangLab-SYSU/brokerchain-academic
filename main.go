@@ -1,26 +1,20 @@
 package main
 
 import (
-//_ "net/http/pprof"
+	//_ "net/http/pprof"
 
-"blockEmulator/build"
+	"blockEmulator/build"
 	"blockEmulator/global"
 	"blockEmulator/networks"
 	"blockEmulator/params"
+	"blockEmulator/utils"
 	"bufio"
 	"bytes"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	rand2 "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
-	"github.com/spf13/pflag"
 	"io"
 	"io/ioutil"
 	"log"
@@ -37,6 +31,14 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
+	"github.com/spf13/pflag"
 )
 
 var (
@@ -113,6 +115,7 @@ func Post2(url string, data []byte) ([]byte, error) {
 	}
 	return body, nil
 }
+
 type QueryReq struct {
 	PublicKey string `json:"PublicKey" binding:"required"`
 	RandomStr string `json:"RandomStr" binding:"required"`
@@ -140,43 +143,59 @@ type TxReq struct {
 
 var config DynamicConfig
 
-
-func GetPublicKeyFromPrivateKey(p string) string {
-	privateKey := new(big.Int)
-	privateKey.SetString(p, 10)
-	x, y := elliptic.P256().ScalarBaseMult(privateKey.Bytes())
-	pubKeyBytes := elliptic.MarshalCompressed(elliptic.P256(), x, y)
-	return hex.EncodeToString(pubKeyBytes)
-}
-
-func SignECDSA(private *big.Int, data string) (string, string, error) {
-	privateKey := &ecdsa.PrivateKey{}
-	privateKey.Curve = elliptic.P256()
-	privateKey.D = private
-	x, y := elliptic.P256().ScalarBaseMult(private.Bytes())
-	privateKey.X = x
-	privateKey.Y = y
-	hash := sha256.Sum256([]byte(data))
-	r, s, err := ecdsa.Sign(rand2.Reader, privateKey, hash[:])
-	if err != nil {
-		return "", "", err
+func IsEthPrivateKeyHex(priv string) bool {
+	if strings.HasPrefix(priv, "0x") {
+		priv = priv[2:]
 	}
-	r1 := hex.EncodeToString(r.Bytes())
-	s1 := hex.EncodeToString(s.Bytes())
-	return r1, s1, nil
+
+	if len(priv) != 64 {
+		return false
+	}
+
+	_, err := hex.DecodeString(priv)
+	return err == nil
 }
+
+func GetPublicKeyFromPrivateKey(p string) (string, error) {
+	p = strings.TrimSpace(p)
+	if strings.HasPrefix(p, "0x") {
+		p = p[2:]
+	}
+	if !IsEthPrivateKeyHex(p) {
+		fmt.Printf("invalid private key: %v \n", p)
+		return "", errors.New("invalid private key")
+	}
+	privateKey := new(big.Int)
+	privateKey.SetString(p, 16)
+	privKeyImported, err := crypto.ToECDSA(privateKey.Bytes())
+	if err != nil {
+		fmt.Printf("invalid private key: %v \n", p)
+		return "", err
+	}
+	// 2. 生成公钥
+	publicKey := privKeyImported.PublicKey
+	publicKeyBytes := crypto.FromECDSAPub(&publicKey)
+	return hex.EncodeToString(publicKeyBytes), nil
+}
+
 func GetAddress() string {
-	decodeString, _ := hex.DecodeString(global.PublicKey)
-	hash := sha256.Sum256(decodeString)
-	hash2 := hash[:20]
-	address := hex.EncodeToString(hash2)
-	return address
+	privKeyImported, err := crypto.ToECDSA(global.PrivateKeyBigInt.Bytes())
+	if err != nil {
+		log.Fatalf("to ECDSA failed: %v", err)
+	}
+	address := crypto.PubkeyToAddress(privKeyImported.PublicKey)
+	addr := strings.ToLower(address.String())
+	if len(addr) > 2 && addr[:2] == "0x" {
+		addr = addr[2:]
+	}
+	return addr
 }
+
 func printbanner() {
 	fmt.Println(" ______                  __                       ______  __               _\n|_   _ \\                [  |  _                 .' ___  |[  |             (_)           \n  | |_) | _ .--.   .--.  | | / ] .---.  _ .--. / .'   \\_| | |--.   ,--.   __   _ .--.   \n  |  __'.[ `/'`\\]/ .'`\\ \\| '' < / /__\\\\[ `/'`\\]| |        | .-. | `'_\\ : [  | [ `.-. |  \n _| |__) || |    | \\__. || |`\\ \\| \\__., | |    \\ `.___.'\\ | | | | // | |, | |  | | | |  \n|_______/[___]    '.__.'[__|  \\_]'.__.'[___]    `.____ .'[___]|__]\\'-;__/[___][___||__]  (academic)")
 }
 func printDisclaimers() {
-	fmt.Println("\nBrokerChain仅供学术交流使用，用户不得使用BrokerChain从事任何非法活动。\n用户使用BrokerChain所产生的任何直接或间接后果，均与BrokerChain创始团队无关。\nBrokerChain创始团队保留随时修改、更新或终止BrokerChain的权利，且无需事先通知用户。\n用户在使用BrokerChain时，应自行承担风险，并同意放弃对创始团队的任何索赔权利。\n本免责声明受中华人民共和国法律管辖，并按照其解释。\n")
+	fmt.Println("\nBrokerChain仅供学术交流使用，用户不得使用BrokerChain从事任何非法活动。\n用户使用BrokerChain所产生的任何直接或间接后果，均与BrokerChain创始团队无关。\nBrokerChain创始团队保留随时修改、更新或终止BrokerChain的权利，且无需事先通知用户。\n用户在使用BrokerChain时，应自行承担风险，并同意放弃对创始团队的任何索赔权利。\n本免责声明受中华人民共和国法律管辖，并按照其解释。")
 }
 func getversion() {
 	version, err1 := Get("getversion", []byte{})
@@ -219,13 +238,13 @@ func handlequeryacc(reader *bufio.Reader) {
 		return
 	}
 	fmt.Println()
-	Unit := new(big.Float)
-	Unit.SetString(global.Uint)
-	bf := new(big.Float)
-	bf.SetString(r.Balance)
-	bf1 := new(big.Float)
-	bf1.Quo(bf, Unit)
-	fmt.Println("Your account address is:", r.AccountAddr, ",the balance of your account is:", bf1.Text('f', -1))
+
+	val, err := utils.WeiToEthTrim(r.Balance)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("Your account address is:", r.AccountAddr, ",the balance of your account is:", val)
 	return
 }
 
@@ -250,14 +269,20 @@ func handletransfer(reader *bufio.Reader) {
 	// 将字节切片转换为字符串并打印
 	content := string(data)
 	global.PrivateKey = content
-	global.PrivateKeyBigInt.SetString(global.PrivateKey, 10)
-	global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
+	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	if err != nil {
+		updateErr := updateAccountAuto(filename)
+		if updateErr != nil {
+			return
+		}
+	}
 
 	file.Close()
 
 	rands := uuid.New().String()
 	thedata := rands + GetAddress()
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 	qreq := QueryReq{
 		PublicKey: global.PublicKey,
@@ -280,13 +305,12 @@ func handletransfer(reader *bufio.Reader) {
 		return
 	}
 	fmt.Println()
-	Unit := new(big.Float)
-	Unit.SetString(global.Uint)
-	bf := new(big.Float)
-	bf.SetString(r.Balance)
-	bf1 := new(big.Float)
-	bf1.Quo(bf, Unit)
-	fmt.Println("Your account address is:", r.AccountAddr, ",the balance of your account is:", bf1.Text('f', -1))
+	valEth, err := utils.WeiToEthTrim(r.Balance)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println("Your account address is:", r.AccountAddr, ",the balance of your account is:", valEth)
 
 	fmt.Println("Please enter the address of recipient's account:")
 	to, _ := reader.ReadString('\n')
@@ -296,6 +320,9 @@ func handletransfer(reader *bufio.Reader) {
 		fmt.Println("The recipient's account address cannot be the same as the payer's. Please re-enter the recipient's account address:")
 		to, _ = reader.ReadString('\n')
 		to = strings.TrimSpace(to)
+	}
+	if strings.HasPrefix(to, "0x") {
+		to = to[2:]
 	}
 
 	fmt.Println("Please enter the amount to transfer:")
@@ -308,7 +335,7 @@ func handletransfer(reader *bufio.Reader) {
 
 	randstr := uuid.New().String()
 	thedata1 := randstr + to + val + fee
-	sign21, sign22, _ := SignECDSA(global.PrivateKeyBigInt, thedata1)
+	sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
 
 	qreq1 := TxReq{
 		PublicKey: global.PublicKey,
@@ -353,12 +380,18 @@ func handleclaim(reader *bufio.Reader) {
 	// 将字节切片转换为字符串并打印
 	content := string(data)
 	global.PrivateKey = content
-	global.PrivateKeyBigInt.SetString(global.PrivateKey, 10)
-	global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
+	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	if err != nil {
+		updateErr := updateAccountAuto(filename)
+		if updateErr != nil {
+			return
+		}
+	}
 	file.Close()
 
 	randstr := uuid.New().String()
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, randstr)
 	claimreq := ClaimReq{
 		PublicKey: global.PublicKey,
 		RandomStr: randstr,
@@ -401,9 +434,17 @@ func handleopenwallet(reader *bufio.Reader) {
 
 	// 将字节切片转换为字符串并打印
 	content := string(data)
+
 	global.PrivateKey = content
-	global.PrivateKeyBigInt.SetString(global.PrivateKey, 10)
-	global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
+	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	if err != nil {
+		updateErr := updateAccountAuto(filename)
+		if updateErr != nil {
+			return
+		}
+	}
+	fmt.Println("private key is:", global.PrivateKey)
 
 	file.Close()
 
@@ -414,8 +455,11 @@ func handleopenwallet(reader *bufio.Reader) {
 	//gin.DefaultErrorWriter = io.Discard
 	r := gin.Default()
 	r.Use(CorsConfig())
-	// 加载 HTML 模板
-	r.LoadHTMLGlob("html/*")
+	//// 加载 HTML 模板
+	//r.LoadHTMLGlob("html/*")
+
+	loadTemplates(r)
+
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
@@ -464,8 +508,12 @@ func handleopenwallet(reader *bufio.Reader) {
 				switch request.Method {
 				case "eth_getBlockByNumber":
 					response.Result = eth_getBlockByNumber(request)
+				case "eth_getBlockByHash":
+					response.Result = eth_getBlockByHash(request)
 				case "eth_chainId":
 					response.Result = eth_chainId(request)
+				case "eth_getTransactionCount":
+					response.Result = eth_getTransactionCount(request)
 				case "net_version":
 					response.Result = net_version(request)
 				case "eth_accounts":
@@ -496,7 +544,13 @@ func handleopenwallet(reader *bufio.Reader) {
 					} else {
 						response.Result = aaa
 					}
-
+				case "eth_sendRawTransaction":
+					aaa, e3 := eth_sendRawTransaction(request)
+					if e3 != nil {
+						response.Error = aaa
+					} else {
+						response.Result = aaa
+					}
 					//gasPrice:=""
 					//if obj["gasPrice"] != nil {
 					//	gasPrice=obj["gasPrice"].(string)
@@ -527,8 +581,12 @@ func handleopenwallet(reader *bufio.Reader) {
 				response.Result = eth_maxPriorityFeePerGas(request2)
 			case "eth_getBlockByNumber":
 				response.Result = eth_getBlockByNumber(request2)
+			case "eth_getBlockByHash":
+				response.Result = eth_getBlockByHash(request2)
 			case "eth_chainId":
 				response.Result = eth_chainId(request2)
+			case "eth_getTransactionCount":
+				response.Result = eth_getTransactionCount(request2)
 			case "net_version":
 				response.Result = net_version(request2)
 			case "eth_accounts":
@@ -554,7 +612,15 @@ func handleopenwallet(reader *bufio.Reader) {
 				} else {
 					response.Result = aaa
 				}
+			case "eth_sendRawTransaction":
+				aaa, e3 := eth_sendRawTransaction(request2)
+				if e3 != nil {
+					response.Error = aaa
+				} else {
+					response.Result = aaa
+				}
 			}
+
 			c.JSON(http.StatusOK, response)
 			return
 		}
@@ -564,7 +630,7 @@ func handleopenwallet(reader *bufio.Reader) {
 	r.GET("/api/balance", func(c *gin.Context) {
 		rands := uuid.New().String()
 		thedata := rands + GetAddress()
-		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+		sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 		qreq := QueryReq{
 			PublicKey: global.PublicKey,
@@ -580,21 +646,19 @@ func handleopenwallet(reader *bufio.Reader) {
 			return
 		}
 
-		var r ReturnAccountState
-		err = json.Unmarshal(data1, &r)
+		var res ReturnAccountState
+		err = json.Unmarshal(data1, &res)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		Unit := new(big.Float)
-		Unit.SetString(global.Uint)
-		bf := new(big.Float)
-		bf.SetString(r.Balance)
-		bf1 := new(big.Float)
-		bf1.Quo(bf, Unit)
+		val, err := utils.WeiToEthTrim(res.Balance)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
-		//fmt.Println("账户地址是:", r.AccountAddr, ",余额是:"+bf1.Text('f', -1))
-		c.JSON(http.StatusOK, gin.H{"balance": bf1.Text('f', -1), "addr": r.AccountAddr})
+		c.JSON(http.StatusOK, gin.H{"balance": val, "addr": res.AccountAddr})
 	})
 
 	// 定义转账的 API 端点
@@ -617,7 +681,7 @@ func handleopenwallet(reader *bufio.Reader) {
 
 		rands := uuid.New().String()
 		thedata := rands + GetAddress()
-		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+		sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 		qreq := QueryReq{
 			PublicKey: global.PublicKey,
@@ -627,6 +691,10 @@ func handleopenwallet(reader *bufio.Reader) {
 			UUID:      GetAddress(),
 		}
 		to := request.RecipientAddress
+		if strings.HasPrefix(to, "0x") {
+			to = to[2:]
+		}
+
 		m, _ := json.Marshal(qreq)
 		data1, err := Post("query-g", m)
 		if err != nil {
@@ -655,7 +723,7 @@ func handleopenwallet(reader *bufio.Reader) {
 			thedata1 = randstr + to + request.Amount + request.Fee
 		}
 
-		sign21, sign22, _ := SignECDSA(global.PrivateKeyBigInt, thedata1)
+		sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
 
 		qreq1 := TxReq{
 			PublicKey: global.PublicKey,
@@ -705,7 +773,7 @@ func handleopenwallet(reader *bufio.Reader) {
 	file2.Sync()
 	file2.Close()
 
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	if runtime.GOOS == "windows" {
 		url := "http://127.0.0.1:" + strconv.Itoa(freePort)
 		cmd := "cmd"
@@ -718,6 +786,7 @@ func handleopenwallet(reader *bufio.Reader) {
 	//}
 
 }
+
 func handlegeneratekey(reader *bufio.Reader) bool {
 	fmt.Println("Please enter the filename to save the generated private key:")
 	filename, _ := reader.ReadString('\n')
@@ -729,18 +798,20 @@ func handlegeneratekey(reader *bufio.Reader) bool {
 		return false
 	}
 
-	PrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand2.Reader)
+	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		fmt.Println("Failed to generate public/private keys:", err)
 		return false
 	}
-	//fmt.Printf("Public key generated: %s\n", publicKey)
-	if len(PrivateKey.D.String()) >= 74 {
-		fmt.Println("Private key generated: ", PrivateKey.D.String()[:4]+"***********************"+PrivateKey.D.String()[74:])
+	if len(privateKey.D.String()) >= 74 {
+		fmt.Println("Private key generated: ", privateKey.D.String()[:4]+"***********************"+privateKey.D.String()[74:])
 	}
-	global.PrivateKey = PrivateKey.D.String()
-	global.PrivateKeyBigInt.SetString(global.PrivateKey, 10)
-	global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	global.PrivateKey = hex.EncodeToString(privateKey.D.Bytes())
+	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
+	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	if err != nil {
+		return false
+	}
 
 	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -749,7 +820,7 @@ func handlegeneratekey(reader *bufio.Reader) bool {
 		return false
 	}
 
-	content := PrivateKey.D.String()
+	content := hex.EncodeToString(global.PrivateKeyBigInt.Bytes())
 	_, err = file.Write([]byte(content))
 	if err != nil {
 		fmt.Println(err)
@@ -759,14 +830,15 @@ func handlegeneratekey(reader *bufio.Reader) bool {
 	file.Close()
 	return true
 }
+
 func handleexistprivatekey(reader *bufio.Reader) bool {
 	fmt.Println("Please enter the filename for the private key:")
-	filename:=""
-	if !debug{
+	filename := ""
+	if !debug {
 		filename, _ = reader.ReadString('\n')
 		filename = strings.TrimSpace(filename)
-	}else {
-		filename=filename1
+	} else {
+		filename = filename1
 	}
 	file, err := os.Open(filename)
 	if err != nil {
@@ -781,12 +853,19 @@ func handleexistprivatekey(reader *bufio.Reader) bool {
 		time.Sleep(3 * time.Second)
 		return false
 	}
+	file.Close()
 
 	// 将字节切片转换为字符串并打印
 	content := string(data)
 	global.PrivateKey = content
-	global.PrivateKeyBigInt.SetString(global.PrivateKey, 10)
-	global.PublicKey = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
+	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
+	if err != nil {
+		updateErr := updateAccountAuto(filename)
+		if updateErr != nil {
+			return false
+		}
+	}
 
 	file.Close()
 	return true
@@ -824,28 +903,30 @@ func tryjoin() bool {
 		}
 	}
 }
-//func GetBloomFilter(txs []*core.Transaction) *bitset.BitSet {
-//	bs := bitset.New(2048)
-//	for _, tx := range txs {
-//		bs.Set(utils.ModBytes(tx.TxHash, 2048))
+
+//	func GetBloomFilter(txs []*core.Transaction) *bitset.BitSet {
+//		bs := bitset.New(2048)
+//		for _, tx := range txs {
+//			bs.Set(utils.ModBytes(tx.TxHash, 2048))
+//		}
+//		return bs
 //	}
-//	return bs
-//}
-//func GetTxTreeRoot(txs []*core.Transaction) []byte {
-//	// use a memory trie database to do this, instead of disk database
-//	triedb := trie.NewDatabase(rawdb.NewMemoryDatabase())
-//	transactionTree := trie.NewEmpty(triedb)
-//	for _, tx := range txs {
-//		transactionTree.Update(tx.TxHash, []byte{0})
+//
+//	func GetTxTreeRoot(txs []*core.Transaction) []byte {
+//		// use a memory trie database to do this, instead of disk database
+//		triedb := trie.NewDatabase(rawdb.NewMemoryDatabase())
+//		transactionTree := trie.NewEmpty(triedb)
+//		for _, tx := range txs {
+//			transactionTree.Update(tx.TxHash, []byte{0})
+//		}
+//		return transactionTree.Hash().Bytes()
 //	}
-//	return transactionTree.Hash().Bytes()
-//}
 var debug = false
 var filename1 string
-//func init() {
+
+// func init() {
 //
-//
-//}
+// }
 func PrintLog(format string, v ...interface{}) {
 	timestamp := time.Now().Format("2006/01/02 15:04:05.000")
 	msg := fmt.Sprintf(format, v...)
@@ -854,16 +935,13 @@ func PrintLog(format string, v ...interface{}) {
 	log.Printf("%s   %s", millis, msg)
 }
 
-
 func main() {
-
-
 
 	//go func() {
 	//	log.Println(http.ListenAndServe("localhost:6080", nil))
 	//}()
 	go func() {
-		for  {
+		for {
 			runtime.GC()
 			time.Sleep(60 * time.Second)
 		}
@@ -872,6 +950,8 @@ func main() {
 	global.Senior.Store(false)
 	pflag.StringVarP(&filename1, "filename", "f", "a", "the filename")
 	pflag.Parse()
+	log.SetOutput(os.Stdout)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	printbanner()
 	printDisclaimers()
@@ -893,14 +973,19 @@ func main() {
 		fmt.Println("3: Query an account and its balance if given an address.")
 		fmt.Println("4: Transfer tokens to another account.")
 		fmt.Println("5: Claim BKC tokens through faucets.")
-		input0:=""
+		fmt.Println("\033[31m6: Update private/public key.\033[0m")
+		input0 := ""
+		var errInp error
 		if debug {
-			input0 ="1"
-		}else {
-			input0, _ = reader.ReadString('\n')
+			input0 = "1"
+		} else {
+			input0, errInp = reader.ReadString('\n')
+			if errInp != nil {
+				fmt.Println(errInp)
+				break
+			}
 			input0 = strings.TrimSpace(input0)
 		}
-
 
 		if input0 == "3" {
 			handlequeryacc(reader)
@@ -915,14 +1000,18 @@ func main() {
 		if input0 == "2" {
 			handleopenwallet(reader)
 			fmt.Println()
-			select {
-
-			}
+			select {}
 			continue
 		}
 
 		if input0 == "5" {
 			handleclaim(reader)
+			fmt.Println()
+			continue
+		}
+
+		if input0 == "6" {
+			updateAccount(reader)
 			fmt.Println()
 			continue
 		}
@@ -939,10 +1028,10 @@ func main() {
 		fmt.Println("Please enter an option:")
 		fmt.Println("1: Generate a pair of (public/private) keys for a new account")
 		fmt.Println("2: Use the private key of an existing account")
-		input :="2"
-		if debug{
-			input ="2"
-		}else {
+		input := "2"
+		if debug {
+			input = "2"
+		} else {
 			input, _ = reader.ReadString('\n')
 			input = strings.TrimSpace(input)
 		}
@@ -953,19 +1042,19 @@ func main() {
 		case "1":
 			if !handlegeneratekey(reader) {
 				break
-			}else {
+			} else {
 				flag = true
 				break
 			}
 		case "2":
 			if !handleexistprivatekey(reader) {
 				break
-			}else {
+			} else {
 				flag = true
 				break
 			}
 		default:
-			fmt.Println("Invalid input.")
+			fmt.Printf("Invalid input. %v \n", input)
 			fmt.Println()
 			continue
 		}
@@ -984,101 +1073,16 @@ func main() {
 		global.Senior.Store(false)
 	} else {
 		fmt.Println("Invalid input.")
-		time.Sleep(10*time.Second)
+		time.Sleep(10 * time.Second)
 		os.Exit(1)
 	}
-	//if !global.Senior.Load(){
-	//	var a = func() bool {
-	//		var b = false
-	//		for i := 65231; i < 65241; i++ {
-	//			p := ":" + strconv.Itoa(i)
-	//			_, err := net.Listen("tcp", p)
-	//			if err != nil {
-	//				continue
-	//			}
-	//			b = true
-	//			//defer l.Close()
-	//			break
-	//		}
-	//		if !b {
-	//			fmt.Println(func() string {
-	//				s := []byte{80, 114, 111, 104, 105, 98, 105, 116, 32, 114, 117, 110, 110, 105, 110, 103, 32, 116, 111, 111, 32, 109, 97, 110, 121, 32, 109, 105, 110, 101, 114, 115, 32, 115, 105, 109, 117, 108, 116, 97, 110, 101, 111, 117, 115, 108, 121, 46}
-	//				return string(s)
-	//			}())
-	//			select {}
-	//		}
-	//		return b
-	//	}()
-	//	_ = a
-	//	for i2 := 0; i2 < 2; i2++ {
-	//		go func() {
-	//			const size = 512 * 1024 * 1024
-	//			bigSlice := make([]byte, size)
-	//			rand.Seed(time.Now().UnixNano())
-	//			previ:=0
-	//			num:= rand.Intn(256)
-	//			for i1 := 0;i1<size; i1++ {
-	//				if i1 > previ + 100 {
-	//					previ = i1
-	//					num= rand.Intn(256)
-	//				}
-	//				bigSlice[i1] = byte(num)
-	//			}
-	//			for  {
-	//				count1:=byte(0)
-	//				previ=0
-	//				for i1 := 0;i1<size; i1++  {
-	//					if i1 > previ + 100 {
-	//						previ = i1
-	//						num= rand.Intn(256)
-	//					}
-	//					bigSlice[i1] = byte(num)
-	//					count1+=bigSlice[i1]
-	//				}
-	//				//time.Sleep(1*time.Second)
-	//			}
-	//		}()
-	//	}
-	//
-	//	//fmt.Println(runtime.NumCPU())
-	//	cpu := runtime.NumCPU()
-	//	if cpu < 1 {
-	//		cpu = 1
-	//	}
-	//	for i := 0; i < cpu/4; i++ {
-	//		go func() {
-	//			count:=0
-	//			for  {
-	//				mm:=make(map[int]bool)
-	//				for i1:= 0; i1 < 1000; i1++ {
-	//					mm[i1] = true
-	//				}
-	//				for i1:= 0; i1 < 1000; i1++ {
-	//					a1 := mm[i1]
-	//					if a1{
-	//
-	//					}
-	//				}
-	//				for i1:= 0; i1 < 1000; i1++ {
-	//					delete(mm, i1)
-	//				}
-	//				mm = nil
-	//				count++
-	//				if count >=150{
-	//					count = 0
-	//					time.Sleep(5 * time.Millisecond)
-	//				}
-	//			}
-	//		}()
-	//	}
-	//}
-	log.SetOutput(os.Stdout)
+
 	Runhttp()
-	f:=false
+	f := false
 	global.Randomstr = uuid.New().String()
 	for {
 		PrintLog("Start trying to join BrokerChain network...")
-		for  {
+		for {
 			if !JoinPoS() {
 				time.Sleep(1 * time.Second)
 			} else {
@@ -1093,7 +1097,7 @@ func main() {
 					RandomStr: global.Randomstr,
 				}
 				m, _ := json.Marshal(beatreq)
-				for  {
+				for {
 					da, err := Post2("beat", m)
 					if err != nil {
 						fmt.Println("Sending the beat failed, please check your network: " + err.Error())
@@ -1106,11 +1110,11 @@ func main() {
 		}
 		if global.Senior.Load() {
 			PrintLog("Join a senior shard of BrokerChain network successfully.")
-		}else {
+		} else {
 			PrintLog("Join a junior shard of BrokerChain network successfully.")
 		}
 		WaitConstructShard()
-		if !build_(){
+		if !build_() {
 			continue
 		}
 		connect()
@@ -1121,78 +1125,78 @@ func main() {
 	}
 
 }
-func build_() bool{
+func build_() bool {
 
-		if len(config.NewNodeinfos) == 0 {
+	if len(config.NewNodeinfos) == 0 {
+		return false
+	}
+	maxShardId, err := strconv.Atoi(config.NewNodeinfos[len(config.NewNodeinfos)-1].ShardID)
+	if err != nil {
+		return false
+	}
+	shardNum = maxShardId + 1
+	nodeNum = len(config.NewNodeinfos)
+	shardID = maxShardId
+	for i, node := range config.NewNodeinfos {
+		if node.PublicKey == GetAddress() {
+			nodeID = i
+			break
+		}
+	}
+	params.ShardNum = shardNum
+	params.NodesInShard = nodeNum
+
+	nodes := make([]NodeInfo, 0)
+	if config.OldNodeinfos != nil {
+		nodes = append(nodes, config.OldNodeinfos...)
+	}
+	nodes = append(nodes, config.NewNodeinfos...)
+	shardid := 0
+	nodeid := -1
+	for _, node := range nodes {
+		nodeid++
+		shardidnow, err1 := strconv.Atoi(node.ShardID)
+		if err1 != nil {
 			return false
 		}
-		maxShardId, err := strconv.Atoi(config.NewNodeinfos[len(config.NewNodeinfos)-1].ShardID)
-		if err != nil {
-			return false
+		if shardidnow != shardid {
+			shardid = shardidnow
+			nodeid = 0
 		}
-		shardNum = maxShardId + 1
-		nodeNum = len(config.NewNodeinfos)
-		shardID = maxShardId
-		for i, node := range config.NewNodeinfos {
-			if node.PublicKey == GetAddress() {
-				nodeID = i
-				break
-			}
+		if params.IPmap_nodeTable[uint64(shardid)] == nil {
+			params.IPmap_nodeTable[uint64(shardid)] = make(map[uint64]string)
 		}
-		params.ShardNum = shardNum
-		params.NodesInShard = nodeNum
-
-		nodes := make([]NodeInfo, 0)
-		if config.OldNodeinfos != nil {
-			nodes = append(nodes, config.OldNodeinfos...)
+		params.IPmap_nodeTable[uint64(shardid)][uint64(nodeid)] = node.Ip + ":" + node.Port
+	}
+	//fmt.Println("has generated ipmap:")
+	for i := 0; i < shardNum; i++ {
+		for j := 0; j < nodeNum; j++ {
+			if params.IPmap_nodeTable[uint64(i)] == nil {
+				params.IPmap_nodeTable[uint64(i)] = make(map[uint64]string)
+			}
+			params.IPmap_nodeTable[uint64(i)][uint64(j)] = strconv.Itoa(i) + ":" + strconv.Itoa(j)
+			//fmt.Println("S" + strconv.Itoa(i) + "N" + strconv.Itoa(j) + ":" + params.IPmap_nodeTable[uint64(i)][uint64(j)])
 		}
-		nodes = append(nodes, config.NewNodeinfos...)
-		shardid := 0
-		nodeid := -1
-		for _, node := range nodes {
-			nodeid++
-			shardidnow, err1 := strconv.Atoi(node.ShardID)
-			if err1 != nil {
-				return false
-			}
-			if shardidnow != shardid {
-				shardid = shardidnow
-				nodeid = 0
-			}
-			if params.IPmap_nodeTable[uint64(shardid)] == nil {
-				params.IPmap_nodeTable[uint64(shardid)] = make(map[uint64]string)
-			}
-			params.IPmap_nodeTable[uint64(shardid)][uint64(nodeid)] = node.Ip + ":" + node.Port
-		}
-		//fmt.Println("has generated ipmap:")
-		for i := 0; i < shardNum; i++ {
-			for j := 0; j < nodeNum; j++ {
-				if params.IPmap_nodeTable[uint64(i)] == nil {
-					params.IPmap_nodeTable[uint64(i)] = make(map[uint64]string)
-				}
-				params.IPmap_nodeTable[uint64(i)][uint64(j)] = strconv.Itoa(i) + ":" + strconv.Itoa(j)
-				//fmt.Println("S" + strconv.Itoa(i) + "N" + strconv.Itoa(j) + ":" + params.IPmap_nodeTable[uint64(i)][uint64(j)])
-			}
-		}
+	}
 
-		params.SupervisorAddr = global.ServerHost + ":" + strconv.Itoa(38800)
-		params.IPmap_nodeTable[params.SupervisorShard] = make(map[uint64]string)
-		params.IPmap_nodeTable[params.SupervisorShard][0] = params.SupervisorAddr
+	params.SupervisorAddr = global.ServerHost + ":" + strconv.Itoa(38800)
+	params.IPmap_nodeTable[params.SupervisorShard] = make(map[uint64]string)
+	params.IPmap_nodeTable[params.SupervisorShard][0] = params.SupervisorAddr
 
-		global.ProxyServerHost = config.ProxyIp
-		//fmt.Println("proxy:", global.ProxyServerHost)
-		global.ServerForwardPort = config.ProxyPort
-		//fmt.Println("port:", global.ServerForwardPort)
+	global.ProxyServerHost = config.ProxyIp
+	//fmt.Println("proxy:", global.ProxyServerHost)
+	global.ServerForwardPort = config.ProxyPort
 
-		return true
+	log.Printf("proxy: %v, port: %v", global.ProxyServerHost, global.ServerForwardPort)
 
+	return true
 
 }
 
 func connect() {
 	for {
 		randstr := uuid.New().String()
-		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
+		sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, randstr)
 		getproblemreq := ConReq{
 			PublicKey: global.PublicKey,
 			RandomStr: randstr,
@@ -1204,24 +1208,24 @@ func connect() {
 		//conn, err2 := dialer.Dial("tcp", global.ServerHost+":"+global.ServerForwardPort)
 		conn, err2 := dialer.Dial("tcp", global.ProxyServerHost+":"+global.ServerForwardPort)
 		if err2 != nil {
-			PrintLog("Connect error", err2)
+			PrintLog("Connect error %v", err2)
 		} else {
 			conn.(*net.TCPConn).SetKeepAlive(true)
 			global.Conn = conn
-			aa:="auth"
-			if global.Senior.Load(){
-				aa="auth2"
+			aa := "auth"
+			if global.Senior.Load() {
+				aa = "auth2"
 			}
 			networks.TcpDial(marshal, aa)
 			break
 		}
-		time.Sleep( 500*time.Millisecond )
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
 func GetRandStrSign() (string, string, string) {
 	uid := uuid.New().String()
-	r, s, _ := SignECDSA(global.PrivateKeyBigInt, uid)
+	r, s, _ := utils.SignECDSA(global.PrivateKeyBigInt, uid)
 	return uid, r, s
 }
 
@@ -1248,7 +1252,7 @@ type JoinReq2 struct {
 	RandomStr string `json:"RandomStr" binding:"required"`
 	Sign1     string `json:"Sign1" binding:"required"`
 	Sign2     string `json:"Sign2" binding:"required"`
-	R string `json:"R" binding:"required"`
+	R         string `json:"R" binding:"required"`
 }
 
 type BeatReq struct {
@@ -1259,17 +1263,17 @@ type BeatReq struct {
 func JoinPoS() bool {
 	randstr := uuid.New().String()
 	thedata := randstr
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	joinreq := JoinReq2{
 		PublicKey: global.PublicKey,
 		RandomStr: randstr,
 		Sign1:     sign1,
 		Sign2:     sign2,
-		R: global.Randomstr,
+		R:         global.Randomstr,
 	}
 	//fmt.Println(joinreq.R)
 	m, _ := json.Marshal(joinreq)
-	url1:= "join2"
+	url1 := "join2"
 	if global.Senior.Load() {
 		url1 = "join2_senior"
 	}
@@ -1296,7 +1300,7 @@ func JoinPoS() bool {
 			fmt.Println("=============********************************************************************************=============")
 			if global.Senior.Load() {
 				fmt.Println("【Stake failed】. Your account balance is not enough to join senior shard. Program will exit after 10 seconds.")
-			}else {
+			} else {
 				fmt.Println("【Stake failed】. Your account balance is not enough to join junior shard. Program will exit after 10 seconds.")
 			}
 			fmt.Println(string(data))
@@ -1319,7 +1323,7 @@ func Join(answer string) bool {
 	}
 	Ip := "127.0.0.1"
 	thedata := randstr
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	joinreq := JoinReq{
 		PublicKey: global.PublicKey,
 		RandomStr: randstr,
@@ -1351,7 +1355,7 @@ func Join(answer string) bool {
 
 func GetProblem() (string, string, error) {
 	randstr := uuid.New().String()
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, randstr)
 	getproblemreq := GetProblemReq{
 		PublicKey: global.PublicKey,
 		RandomStr: randstr,
@@ -1454,8 +1458,8 @@ func check(arr [32]byte, difficulty int) bool {
 var C *websocket.Conn
 
 func WaitConstructShard() {
-	path:="/ws2"
-	if global.Senior.Load(){
+	path := "/ws2"
+	if global.Senior.Load() {
 		path = "/ws2_senior"
 	}
 	u := url.URL{Scheme: "ws", Host: global.ServerHost + ":" + global.ServerPort, Path: path}
@@ -1487,11 +1491,10 @@ func WaitConstructShard() {
 			//log.Printf("Received: %s", message)
 			PrintLog("Consensus gets started...\n")
 
-				if err = json.Unmarshal(message, &config); err != nil {
-					PrintLog("Unmarshal error:", err)
-					continue
-				}
-
+			if err = json.Unmarshal(message, &config); err != nil {
+				PrintLog("Unmarshal error: %v", err)
+				continue
+			}
 
 			//fmt.Println("config:")
 			//fmt.Println(config)
@@ -1504,7 +1507,7 @@ func WaitConstructShard() {
 	}()
 
 	randstr := uuid.New().String()
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, randstr)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, randstr)
 	req := WsReq{
 		PublicKey: global.PublicKey,
 		RandomStr: randstr,
@@ -1549,6 +1552,36 @@ func CorsConfig() gin.HandlerFunc {
 	}
 }
 
+func eth_getBlockByHash(request RpcRequest) interface{} {
+	s := request.Params[0].(string)
+	number := ""
+	if s == "latest" {
+		number = "latest"
+	} else {
+		number = request.Params[0].(string)[2:]
+	}
+	rands := uuid.New().String()
+	thedata := rands + number
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
+
+	req := GetBlockByNumReq{
+		PublicKey: global.PublicKey,
+		RandomStr: rands,
+		Sign1:     sign1,
+		Sign2:     sign2,
+		UUID:      number,
+	}
+	m1, _ := json.Marshal(req)
+	data1, err2 := Post("eth_getBlockByHash", m1)
+	if err2 != nil {
+		fmt.Println(err2)
+		return nil
+	}
+	var re RpcResponse
+	json.Unmarshal(data1, &re)
+	return re.Result
+}
+
 func eth_getBlockByNumber(request RpcRequest) interface{} {
 	s := request.Params[0].(string)
 	number := ""
@@ -1559,7 +1592,7 @@ func eth_getBlockByNumber(request RpcRequest) interface{} {
 	}
 	rands := uuid.New().String()
 	thedata := rands + number
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 	req := GetBlockByNumReq{
 		PublicKey: global.PublicKey,
@@ -1580,7 +1613,7 @@ func eth_getBlockByNumber(request RpcRequest) interface{} {
 }
 
 func eth_chainId(request RpcRequest) interface{} {
-	return "0x1"
+	return "0x1050"
 }
 
 func net_version(request RpcRequest) interface{} {
@@ -1589,15 +1622,16 @@ func net_version(request RpcRequest) interface{} {
 
 func eth_accounts(request RpcRequest) interface{} {
 	addr := GetAddress()
+	addr = "0x" + addr
+	log.Printf("eth_accounts: %s", addr)
 	return []string{addr}
 }
 
 func eth_getBalance(request RpcRequest) interface{} {
 	UUID := request.Params[0].(string)[2:]
-	//rand, sign := GetRandStrSign()
 	rands := uuid.New().String()
 	thedata := rands + UUID
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 	qreq := QueryReq{
 		PublicKey: global.PublicKey,
@@ -1636,7 +1670,7 @@ func eth_getCode(request RpcRequest) interface{} {
 	UUID := request.Params[0].(string)[2:]
 	rr := uuid.New().String()
 	thedata := rr + UUID
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	req := GetCodeReq{
 		PublicKey: global.PublicKey,
 		RandomStr: rr,
@@ -1659,7 +1693,7 @@ func eth_getTransactionReceipt(request RpcRequest) interface{} {
 	UUID := request.Params[0].(string)[2:]
 	rr := uuid.New().String()
 	thedata := rr + UUID
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	req := GetTransactionReceiptReq{
 		PublicKey: global.PublicKey,
 		RandomStr: rr,
@@ -1681,7 +1715,7 @@ func eth_getTransactionByHash(request RpcRequest) interface{} {
 	UUID := request.Params[0].(string)[2:]
 	rr := uuid.New().String()
 	thedata := rr + UUID
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	req := GetTXByHashReq{
 		PublicKey: global.PublicKey,
 		RandomStr: rr,
@@ -1703,7 +1737,7 @@ func eth_getTransactionByHash(request RpcRequest) interface{} {
 func eth_blockNumber(request RpcRequest) interface{} {
 	rr := uuid.New().String()
 	thedata := rr
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 	req := GetBlockNumReq{
 		PublicKey: global.PublicKey,
@@ -1743,7 +1777,7 @@ func eth_call(request RpcRequest) interface{} {
 	}
 	rr := uuid.New().String()
 	thedata := to + input1 + value + rr
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 	req := CallContractReq{
 		PublicKey: global.PublicKey,
@@ -1794,7 +1828,7 @@ func eth_sendTransaction(request RpcRequest) (interface{}, error) {
 	rr := uuid.New().String()
 	thedata := to + input1 + value + gas + rr
 
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	req := SendContractReq{
 		PublicKey: global.PublicKey,
 		To:        to,
@@ -1819,6 +1853,67 @@ func eth_sendTransaction(request RpcRequest) (interface{}, error) {
 	}
 	fmt.Println(string(data2))
 	fmt.Println(cc1)
+	if cc1.Error != nil {
+		return cc1.Error, errors.New("123")
+	}
+
+	return cc1.Result, nil
+}
+
+func eth_sendRawTransaction(request RpcRequest) (interface{}, error) {
+	rawHex := request.Params[0].(string)
+	var tx types.Transaction
+	err := tx.UnmarshalBinary(common.FromHex(rawHex))
+	if err != nil {
+		fmt.Println(err)
+	}
+	log.Printf("eth_sendRawTransaction tx :%+v \n", tx)
+
+	to := strings.ToLower(tx.To().Hex())
+
+	gas := strconv.FormatUint(tx.Gas(), 10)
+	value := tx.Value().String()
+
+	input1 := common.Bytes2Hex(tx.Data())
+	if len(input1) == 0 {
+		input1 = "0x"
+	}
+
+	rr := uuid.New().String()
+	//thedata := to + input1 + value + gas + rr
+
+	signer := types.NewLondonSigner(tx.ChainId()) // EIP-1559
+
+	fromAccount, err := types.Sender(signer, &tx)
+
+	from := strings.ToLower(fromAccount.Hex())
+
+	req := SendContractReq{
+		PublicKey: from,
+		To:        to,
+		Data:      input1,
+		Value:     value,
+		Gas:       gas,
+		RandomStr: rr,
+		Sign1:     "a",
+		Sign2:     "b",
+	}
+
+	log.Printf("eth_sendRawTransaction req: %+v", req)
+
+	m1, _ := json.Marshal(req)
+	data2, err := Post("eth_sendRawTransaction", m1)
+	if err != nil {
+		fmt.Println(err)
+		return nil, nil
+	}
+	cc1 := RpcResponse{}
+	err = json.Unmarshal(data2, &cc1)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("eth_sendRawTransaction data2", string(data2))
+	fmt.Println("eth_sendRawTransaction cc1", cc1)
 	if cc1.Error != nil {
 		return cc1.Error, errors.New("123")
 	}
@@ -1853,7 +1948,7 @@ func eth_estimateGas(request RpcRequest) interface{} {
 	}
 	rr := uuid.New().String()
 	thedata := to + input1 + value + rr
-	sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+	sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 	req := EstContractReq{
 		PublicKey: global.PublicKey,
 		To:        to,
@@ -1877,6 +1972,29 @@ func eth_estimateGas(request RpcRequest) interface{} {
 	return cc1.Result
 }
 
+func eth_getTransactionCount(request RpcRequest) interface{} {
+	from := request.Params[0].(string)
+	height := request.Params[1].(string)
+	req := TransactionCountReq{
+		From:        from,
+		BlockHeight: height,
+	}
+	m1, _ := json.Marshal(req)
+	data, err := Post("eth_getTransactionCount", m1)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	cc1 := RpcResponse{}
+	err = json.Unmarshal(data, &cc1)
+	if err != nil {
+		log.Printf(err.Error())
+		return nil
+	}
+	log.Printf("eth_getTransactionCount data: %+v", cc1)
+	return "0x" + cc1.Result.(string)
+}
+
 type NodeInfo struct {
 	PublicKey string `json:"PublicKey" binding:"required"`
 	Ip        string `json:"Ip" binding:"required"`
@@ -1892,8 +2010,8 @@ type WsReq struct {
 type DynamicConfig struct {
 	OldNodeinfos []NodeInfo `json:"OldNodeinfos" binding:"required"`
 	NewNodeinfos []NodeInfo `json:"NewNodeinfos" binding:"required"`
-	ProxyIp string `json:"ProxyIp" binding:"required"`
-	ProxyPort string `json:"ProxyPort" binding:"required"`
+	ProxyIp      string     `json:"ProxyIp" binding:"required"`
+	ProxyPort    string     `json:"ProxyPort" binding:"required"`
 }
 
 type RpcRequest struct {
@@ -1929,6 +2047,12 @@ type EstContractReq struct {
 	Sign1     string `json:"Sign1" binding:"required"`
 	Sign2     string `json:"Sign2" binding:"required"`
 }
+
+type TransactionCountReq struct {
+	From        string `json:"From" binding:"required"`
+	BlockHeight string `json:"BlockHeight" binding:"required"`
+}
+
 type GetTransactionReceiptReq struct {
 	UUID      string `json:"uuid" binding:"required"`
 	PublicKey string `json:"PublicKey" binding:"required"`
@@ -2020,8 +2144,8 @@ func Runhttp() {
 	gin.DefaultWriter = io.MultiWriter(f)
 	r := gin.Default()
 	r.Use(CorsConfig())
-	r.LoadHTMLGlob("html/*")
-
+	//r.LoadHTMLGlob("html/*")
+	loadTemplates(r)
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.html", nil)
 	})
@@ -2036,7 +2160,7 @@ func Runhttp() {
 			})
 			return
 		}
-		fmt.Println(string(bytes1))
+		fmt.Println("接收到请求", string(bytes1))
 
 		flag1 := true
 		flag2 := true
@@ -2061,6 +2185,7 @@ func Runhttp() {
 		}
 
 		if flag1 {
+			fmt.Println("request1")
 			responselist := []RpcResponse{}
 			for _, request := range request1 {
 				response := RpcResponse{
@@ -2072,6 +2197,8 @@ func Runhttp() {
 					response.Result = eth_getBlockByNumber(request)
 				case "eth_chainId":
 					response.Result = eth_chainId(request)
+				case "eth_getTransactionCount":
+					response.Result = eth_getTransactionCount(request)
 				case "net_version":
 					response.Result = net_version(request)
 				case "eth_accounts":
@@ -2110,6 +2237,7 @@ func Runhttp() {
 			return
 		}
 		if flag2 {
+			fmt.Println("request2")
 			response := RpcResponse{
 				Jsonrpc: "2.0",
 				Id:      request2.Id,
@@ -2123,6 +2251,8 @@ func Runhttp() {
 				response.Result = eth_getBlockByNumber(request2)
 			case "eth_chainId":
 				response.Result = eth_chainId(request2)
+			case "eth_getTransactionCount":
+				response.Result = eth_getTransactionCount(request2)
 			case "net_version":
 				response.Result = net_version(request2)
 			case "eth_accounts":
@@ -2158,7 +2288,7 @@ func Runhttp() {
 	r.GET("/api/balance", func(c *gin.Context) {
 		rands := uuid.New().String()
 		thedata := rands + GetAddress()
-		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+		sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 		qreq := QueryReq{
 			PublicKey: global.PublicKey,
@@ -2180,14 +2310,12 @@ func Runhttp() {
 			fmt.Println(err)
 			return
 		}
-		Unit := new(big.Float)
-		Unit.SetString(global.Uint)
-		bf := new(big.Float)
-		bf.SetString(r.Balance)
-		bf1 := new(big.Float)
-		bf1.Quo(bf, Unit)
-
-		c.JSON(http.StatusOK, gin.H{"balance": bf1.Text('f', -1), "addr": r.AccountAddr})
+		val, err := utils.WeiToEthTrim(r.Balance)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"balance": val, "addr": r.AccountAddr})
 	})
 
 	// 定义转账的 API 端点
@@ -2205,7 +2333,7 @@ func Runhttp() {
 
 		rands := uuid.New().String()
 		thedata := rands + GetAddress()
-		sign1, sign2, _ := SignECDSA(global.PrivateKeyBigInt, thedata)
+		sign1, sign2, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata)
 
 		qreq := QueryReq{
 			PublicKey: global.PublicKey,
@@ -2243,7 +2371,7 @@ func Runhttp() {
 			thedata1 = randstr + to + request.Amount + request.Fee
 		}
 
-		sign21, sign22, _ := SignECDSA(global.PrivateKeyBigInt, thedata1)
+		sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
 
 		qreq1 := TxReq{
 			PublicKey: global.PublicKey,
@@ -2271,7 +2399,7 @@ func Runhttp() {
 	})
 
 	if global.Senior.Load() {
-		r.GET("/withdraw",func(c *gin.Context) {
+		r.GET("/withdraw", func(c *gin.Context) {
 
 		})
 	}
