@@ -26,7 +26,7 @@ The total supply of BrokerChain's tokens (named **BKC**) will be capped at 1.2 b
 ### Technical Roadmap of BrokerChain 
 The Technical Roadmap of BrokerChain documents all major upgrades and technical changes in BrokerChain's history, while also outlining its future vision. By reviewing this roadmap, users and developers can gain a clear understanding of BrokerChain's technical evolution and future plans.
 
-![Technical Roadmap of BrokerChain](images/img_28.png)
+![Technical Roadmap of BrokerChain](images/svg_1.svg)
 
 
 ### Follow our X (Twitter)
