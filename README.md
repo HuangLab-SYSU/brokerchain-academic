@@ -20,8 +20,13 @@ In BrokerChain’s ecosystem, everyone can become a researcher, miner, user (inc
 - **Users** can initiate token-transfer transactions, invest in BrokerChain on-chain financial products, and participate in activities undertaken by on-chain applications using dApps. For example, using BrokerChain Wallet, users can submit transfer transactions, receive payments, stake tokens in DeFi protocols, assume a broker role (i.e., market maker) to earn liquidity staking income, receive "faucet" tokens, participate in airdrops, and more. To download the wallet APP, please visit the BrokerChain Wallet Project (https://github.com/HuangLab-SYSU/brokerwallet-academic/releases).
 
 
-### BrokerChain poken-issuing plan
+### BrokerChain token-issuing plan
 The total supply of BrokerChain's tokens (named **BKC**) will be capped at 1.2 billion, which will be distributed through a hybrid model that combines pre-allocated reserves with a four-year halving emission schedule for public issuance. About 25% of the supply is reserved for community-building initiatives and incentivizing early developers, ensuring sustainable ecosystem growth. The remaining tokens enter circulation through a decaying emission mechanism, promoting long-term value alignment by reducing block rewards by half every four years.
+
+### Technical Roadmap of BrokerChain 
+The Technical Roadmap of BrokerChain documents all major upgrades and technical changes in BrokerChain's history, while also outlining its future vision. By reviewing this roadmap, users and developers can gain a clear understanding of BrokerChain's technical evolution and future plans.
+
+![Technical Roadmap of BrokerChain](images/img_28.png)
 
 
 ### Follow our X (Twitter)
@@ -87,7 +92,7 @@ The system prompts us to enter the storage location of the private key. If we in
 This private key is tied to your account and will be stored locally, without being transmitted to the network. Please keep your private key safe and do not share it with anyone; otherwise, your account's assets will be at risk. Meanwhile, if you lose your private key, you will be unable to retrieve your account's assets.
 
 
-## Launch a BrokerChain's Miner Client on your MacOS PC
+## Launch a BrokerChain's Miner Client on Your MacOS PC
 
 If your operating system is macOS, you can follow the instructions and steps below to launch the BrokerChain (academic) miner client program.
 
@@ -190,7 +195,7 @@ The Account box displays your account address and balance. Block rewards fund yo
 
 ## Deploy Smart Contracts
 
-Select "Custom" in the GAS LIMITED option and enter 600000 (if the Gas Limit is too low, deploying the contract may fail). Then, click the Deploy button to deploy the smart contract. After successful deployment, the contract's address is displayed in the Deploy Contracts section below.
+Select "Custom" in the GAS LIMIT option and enter 600000 (if the Gas Limit is too low, deploying the contract may fail). Then, click the Deploy button to deploy the smart contract. After successful deployment, the contract's address is displayed in the Deploy Contracts section below.
 
 ![RunBrokerChain13](images/img_13.png)
 
