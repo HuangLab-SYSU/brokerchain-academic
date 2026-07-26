@@ -338,9 +338,12 @@ func getversion() {
 }
 
 func handlequeryacc(reader *bufio.Reader) {
-	fmt.Println("Please enter the address to query:")
+	fmt.Println("Please enter the address to query (or 'b' to go back):")
 	address, _ := reader.ReadString('\n')
 	address = strings.TrimSpace(address)
+	if strings.ToLower(address) == "b" {
+		return
+	}
 	qreq := QueryReq2{
 		UUID: address,
 	}
@@ -369,9 +372,12 @@ func handlequeryacc(reader *bufio.Reader) {
 }
 
 func handletransfer(reader *bufio.Reader) {
-	fmt.Println("Please enter the filename for the private key:")
+	fmt.Println("Please enter the filename for the private key (or 'b' to go back):")
 	filename, _ := reader.ReadString('\n')
 	filename = strings.TrimSpace(filename)
+	if strings.ToLower(filename) == "b" {
+		return
+	}
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -437,33 +443,48 @@ func handletransfer(reader *bufio.Reader) {
 	}
 	fmt.Println("Your account address is:", r.AccountAddr, ",the balance of your account is:", valEth)
 
-	fmt.Println("Please enter the address of recipient's account:")
+	fmt.Println("Please enter the address of recipient's account (or 'b' to go back):")
 	to, _ := reader.ReadString('\n')
 	to = strings.TrimSpace(to)
+	if strings.ToLower(to) == "b" {
+		return
+	}
 
 	for r.AccountAddr == to {
-		fmt.Println("The recipient's account address cannot be the same as the payer's. Please re-enter the recipient's account address:")
+		fmt.Println("The recipient's account address cannot be the same as the payer's. Please re-enter (or 'b' to go back):")
 		to, _ = reader.ReadString('\n')
 		to = strings.TrimSpace(to)
+		if strings.ToLower(to) == "b" {
+			return
+		}
 	}
 	if strings.HasPrefix(to, "0x") {
 		to = to[2:]
 	}
 
-	fmt.Println("Please enter the amount to transfer:")
+	fmt.Println("Please enter the amount to transfer (or 'b' to go back):")
 	val, _ := reader.ReadString('\n')
 	val = strings.TrimSpace(val)
+	if strings.ToLower(val) == "b" {
+		return
+	}
 
-	fmt.Println("Please enter Gas Price (Gwei) [default: 50]:")
+	fmt.Println("Please enter Gas Price (Gwei) [default: 50] (or 'b' to go back):")
 	fee, _ := reader.ReadString('\n')
 	fee = strings.TrimSpace(fee)
+	if strings.ToLower(fee) == "b" {
+		return
+	}
 	if fee == "" {
 		fee = "50" // default 50 Gwei
 	}
 
-	fmt.Println("Please enter Gas Limit [default: 21000]:")
+	fmt.Println("Please enter Gas Limit [default: 21000] (or 'b' to go back):")
 	gasLimitStr, _ := reader.ReadString('\n')
 	gasLimitStr = strings.TrimSpace(gasLimitStr)
+	if strings.ToLower(gasLimitStr) == "b" {
+		return
+	}
 
 	// [NEW] Use standard eth_sendRawTransaction instead of custom sendtx
 	// fee is now in Gwei unit (not BKC)
@@ -503,9 +524,12 @@ func handletransfer(reader *bufio.Reader) {
 }
 
 func handleclaim(reader *bufio.Reader) {
-	fmt.Println("Please enter the filename for the private key:")
+	fmt.Println("Please enter the filename for the private key (or 'b' to go back):")
 	filename, _ := reader.ReadString('\n')
 	filename = strings.TrimSpace(filename)
+	if strings.ToLower(filename) == "b" {
+		return
+	}
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -560,22 +584,25 @@ type ClaimReq struct {
 	Sign2     string `json:"Sign2" binding:"required"`
 }
 
-func handleopenwallet(reader *bufio.Reader) {
-	fmt.Println("Please enter the filename for the private key:")
+func handleopenwallet(reader *bufio.Reader) bool {
+	fmt.Println("Please enter the filename for the private key (or 'b' to go back):")
 	filename, _ := reader.ReadString('\n')
 	filename = strings.TrimSpace(filename)
+	if strings.ToLower(filename) == "b" {
+		return false
+	}
 
 	file, err := os.Open(filename)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return false
 	}
 
 	// 读取文件内容
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return false
 	}
 
 	// 将字节切片转换为字符串并打印
@@ -591,7 +618,7 @@ func handleopenwallet(reader *bufio.Reader) {
 	if err != nil {
 		updateErr := updateAccountAuto(filename)
 		if updateErr != nil {
-			return
+			return false
 		}
 	}
 	fmt.Println("private key is:", global.PrivateKey)
@@ -935,13 +962,13 @@ func handleopenwallet(reader *bufio.Reader) {
 	file2, err := os.OpenFile("The browser wallet URL of account "+GetAddress()+".txt", os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return false
 	}
 
 	_, err = file2.Write([]byte("http://127.0.0.1:" + strconv.Itoa(freePort)))
 	if err != nil {
 		fmt.Println(err)
-		return
+		return false
 	}
 	file2.Sync()
 	file2.Close()
@@ -954,16 +981,17 @@ func handleopenwallet(reader *bufio.Reader) {
 		args = append(args, url)
 		exec.Command(cmd, args...).Start()
 	}
-	//for {
-	//	time.Sleep(1 * time.Second)
-	//}
+	return true
 
 }
 
 func handlegeneratekey(reader *bufio.Reader) bool {
-	fmt.Println("Please enter the filename to save the generated private key:")
+	fmt.Println("Please enter the filename to save the generated private key (or 'b' to go back):")
 	filename, _ := reader.ReadString('\n')
 	filename = strings.TrimSpace(filename)
+	if strings.ToLower(filename) == "b" {
+		return false
+	}
 	_, err2 := os.Stat(filename)
 	if !os.IsNotExist(err2) {
 		fmt.Println("The file is already exists. Please enter a different filename.")
@@ -1005,13 +1033,16 @@ func handlegeneratekey(reader *bufio.Reader) bool {
 }
 
 func handleexistprivatekey(reader *bufio.Reader) bool {
-	fmt.Println("Please enter the filename for the private key:")
+	fmt.Println("Please enter the filename for the private key (or 'b' to go back):")
 	filename := ""
 	if !debug {
 		filename, _ = reader.ReadString('\n')
 		filename = strings.TrimSpace(filename)
 	} else {
 		filename = filename1
+	}
+	if strings.ToLower(filename) == "b" {
+		return false
 	}
 	file, err := os.Open(filename)
 	if err != nil {
@@ -1144,6 +1175,7 @@ func main() {
 
 	reader := bufio.NewReader(os.Stdin)
 
+mainMenu:
 	for {
 		fmt.Println("Welcome. Please enter an option:")
 		fmt.Println("1: Join BrokerChain as a consensus node && Open the wallet.")
@@ -1177,17 +1209,18 @@ func main() {
 			continue
 		}
 		if input0 == "2" {
-			handleopenwallet(reader)
-			fmt.Println()
-			fmt.Println("Wallet is running. Press Enter to close wallet and return to main menu...")
-			reader.ReadString('\n')
-			// Shutdown wallet server gracefully
-			if walletServer != nil {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				walletServer.Shutdown(ctx)
-				walletServer = nil
-				fmt.Println("Wallet closed successfully.")
+			if handleopenwallet(reader) {
+				fmt.Println()
+				fmt.Println("Wallet is running. Press Enter to close wallet and return to main menu...")
+				reader.ReadString('\n')
+				// Shutdown wallet server gracefully
+				if walletServer != nil {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					walletServer.Shutdown(ctx)
+					walletServer = nil
+					fmt.Println("Wallet closed successfully.")
+				}
 			}
 			continue
 		}
@@ -1227,6 +1260,7 @@ func main() {
 		fmt.Println("Please enter an option:")
 		fmt.Println("1: Generate a pair of (public/private) keys for a new account")
 		fmt.Println("2: Use the private key of an existing account")
+		fmt.Println("3: Back to main menu")
 		input := "2"
 		if debug {
 			input = "2"
@@ -1252,6 +1286,8 @@ func main() {
 				flag = true
 				break
 			}
+		case "3":
+			goto mainMenu
 		default:
 			fmt.Printf("Invalid input. %v \n", input)
 			fmt.Println()
@@ -1264,12 +1300,15 @@ func main() {
 	fmt.Println("Please enter an option:")
 	fmt.Println("S: Join a Senior Shard")
 	fmt.Println("J: Join a Junior Shard")
+	fmt.Println("b: Back to main menu")
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 	if input == "S" {
 		global.Senior.Store(true)
 	} else if input == "J" {
 		global.Senior.Store(false)
+	} else if input == "b" || input == "B" {
+		goto mainMenu
 	} else {
 		fmt.Println("Invalid input.")
 		time.Sleep(10 * time.Second)
