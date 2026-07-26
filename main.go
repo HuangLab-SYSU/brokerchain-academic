@@ -10,6 +10,7 @@ import (
 	"blockEmulator/utils"
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -47,6 +48,9 @@ var (
 	nodeNum  int
 	shardID  int
 	nodeID   int
+
+	// wallet server for graceful shutdown
+	walletServer *http.Server
 )
 
 func Get(url string, data []byte) ([]byte, error) {
@@ -916,7 +920,17 @@ func handleopenwallet(reader *bufio.Reader) {
 	fmt.Println("| The browser wallet URL is:" + "【http://127.0.0.1:" + strconv.Itoa(freePort) + "】                 |")
 	fmt.Println("\\----*************************************************************----/")
 	fmt.Println()
-	go r.Run("0.0.0.0:" + strconv.Itoa(freePort))
+
+	// Use a controllable http.Server so we can shut it down gracefully
+	walletServer = &http.Server{
+		Addr:    "0.0.0.0:" + strconv.Itoa(freePort),
+		Handler: r,
+	}
+	go func() {
+		if err := walletServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Println("Wallet server error:", err)
+		}
+	}()
 
 	file2, err := os.OpenFile("The browser wallet URL of account "+GetAddress()+".txt", os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -1138,6 +1152,7 @@ func main() {
 		fmt.Println("4: Transfer tokens to another account.")
 		fmt.Println("5: Claim BKC tokens through faucets.")
 		fmt.Println("\033[31m6: Update private/public key.\033[0m")
+		fmt.Println("7: Exit client.")
 		input0 := ""
 		var errInp error
 		if debug {
@@ -1164,7 +1179,16 @@ func main() {
 		if input0 == "2" {
 			handleopenwallet(reader)
 			fmt.Println()
-			select {}
+			fmt.Println("Wallet is running. Press Enter to close wallet and return to main menu...")
+			reader.ReadString('\n')
+			// Shutdown wallet server gracefully
+			if walletServer != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				walletServer.Shutdown(ctx)
+				walletServer = nil
+				fmt.Println("Wallet closed successfully.")
+			}
 			continue
 		}
 
@@ -1178,6 +1202,17 @@ func main() {
 			updateAccount(reader)
 			fmt.Println()
 			continue
+		}
+
+		if input0 == "7" {
+			fmt.Println("Exiting BrokerChain. Goodbye!")
+			// Shutdown wallet server if running
+			if walletServer != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				walletServer.Shutdown(ctx)
+			}
+			os.Exit(0)
 		}
 
 		if input0 != "1" {
@@ -2589,7 +2624,15 @@ func Runhttp() {
 	fmt.Println("| The browser wallet URL is:" + "【http://127.0.0.1:" + strconv.Itoa(freePort) + "】                 |")
 	fmt.Println("\\----*************************************************************----/")
 	fmt.Println()
-	go r.Run("0.0.0.0:" + strconv.Itoa(freePort))
+	walletServer = &http.Server{
+		Addr:    "0.0.0.0:" + strconv.Itoa(freePort),
+		Handler: r,
+	}
+	go func() {
+		if err := walletServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Println("Wallet server error:", err)
+		}
+	}()
 	file, err := os.OpenFile("The browser wallet URL of account "+GetAddress()+".txt", os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println(err)
