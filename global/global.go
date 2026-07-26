@@ -19,6 +19,7 @@ var ProxyServerHost = "dash.broker-chain.com"
 // var ProxyServerHost = "127.0.0.1"
 var ServerPort = "56741"
 var ServerForwardPort = "56743"
+var EthRpcPort = "42515"
 var MyIp = ""
 
 var Conn net.Conn

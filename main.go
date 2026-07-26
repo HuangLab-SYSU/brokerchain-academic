@@ -191,6 +191,122 @@ func GetAddress() string {
 	return addr
 }
 
+const (
+	CHAIN_ID = 1050
+)
+
+// ethRpcCall sends a standard JSON-RPC 2.0 call to the Supervisor's eth_rpc endpoint
+func ethRpcCall(method string, params ...interface{}) (json.RawMessage, error) {
+	reqBody := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  method,
+		"params":  params,
+		"id":      1,
+	}
+	data, _ := json.Marshal(reqBody)
+	resp, err := http.Post("http://"+global.ServerHost+":"+global.EthRpcPort, "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	var rpcResp RpcResponse
+	json.Unmarshal(body, &rpcResp)
+	if rpcResp.Error != nil {
+		return nil, fmt.Errorf("rpc error: %v", rpcResp.Error)
+	}
+	resultBytes, err := json.Marshal(rpcResp.Result)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(resultBytes), nil
+}
+
+// ethGetTransactionCount gets the nonce for an address from eth_rpc endpoint
+func ethGetTransactionCount(address string) (uint64, error) {
+	result, err := ethRpcCall("eth_getTransactionCount", "0x"+address, "latest")
+	if err != nil {
+		return 0, err
+	}
+	var nonceStr string
+	json.Unmarshal(result, &nonceStr)
+	nonceStr = strings.TrimPrefix(nonceStr, "0x")
+	if nonceStr == "" {
+		nonceStr = "0"
+	}
+	n, _ := strconv.ParseUint(nonceStr, 16, 64)
+	return n, nil
+}
+
+// sendEthRawTransaction constructs, signs, and broadcasts a transfer transaction
+// via standard eth_sendRawTransaction to the Supervisor.
+//   to: recipient address (may or may not have 0x prefix)
+//   value: transfer amount in display unit (e.g. "10" = 10 BKC, converted to wei internally)
+//   gasPriceGwei: gas price in Gwei (converted to wei internally)
+//   gasLimitStr: gas limit (optional, default 21000 if empty)
+func sendEthRawTransaction(to, value, gasPriceGwei, gasLimitStr string) (string, error) {
+	privateKey, err := crypto.HexToECDSA(global.PrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("invalid private key: %v", err)
+	}
+
+	addr := GetAddress()
+	nonce, err := ethGetTransactionCount(addr)
+	if err != nil {
+		return "", fmt.Errorf("get nonce failed: %v", err)
+	}
+
+	// Convert value from display unit to wei (display * 10^18)
+	valueFloat := new(big.Float)
+	valueFloat.SetString(value)
+	multiplier := new(big.Float)
+	multiplier.SetString("1000000000000000000")
+	valueFloat.Mul(valueFloat, multiplier)
+	valueWei := new(big.Int)
+	valueFloat.Int(valueWei)
+
+	// Convert gas price from Gwei to wei (Gwei * 10^9)
+	gasPriceFloat := new(big.Float)
+	gasPriceFloat.SetString(gasPriceGwei)
+	gweiMul := new(big.Float)
+	gweiMul.SetString("1000000000")
+	gasPriceFloat.Mul(gasPriceFloat, gweiMul)
+	gasPriceWei := new(big.Int)
+	gasPriceFloat.Int(gasPriceWei)
+
+	if !strings.HasPrefix(to, "0x") {
+		to = "0x" + to
+	}
+
+	chainID := big.NewInt(CHAIN_ID)
+	gasLimit := uint64(21000)
+	if gasLimitStr != "" {
+		if parsed, err := strconv.ParseUint(gasLimitStr, 10, 64); err == nil {
+			gasLimit = parsed
+		}
+	}
+
+	tx := types.NewTransaction(nonce, common.HexToAddress(to), valueWei, gasLimit, gasPriceWei, nil)
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), privateKey)
+	if err != nil {
+		return "", fmt.Errorf("sign tx failed: %v", err)
+	}
+
+	rawTxBytes, err := signedTx.MarshalBinary()
+	if err != nil {
+		return "", fmt.Errorf("marshal tx failed: %v", err)
+	}
+
+	rawHex := "0x" + hex.EncodeToString(rawTxBytes)
+	result, err := ethRpcCall("eth_sendRawTransaction", rawHex)
+	if err != nil {
+		return "", err
+	}
+	var txHash string
+	json.Unmarshal(result, &txHash)
+	return txHash, nil
+}
+
 func printbanner() {
 	fmt.Println(" ______                  __                       ______  __               _\n|_   _ \\                [  |  _                 .' ___  |[  |             (_)           \n  | |_) | _ .--.   .--.  | | / ] .---.  _ .--. / .'   \\_| | |--.   ,--.   __   _ .--.   \n  |  __'.[ `/'`\\]/ .'`\\ \\| '' < / /__\\\\[ `/'`\\]| |        | .-. | `'_\\ : [  | [ `.-. |  \n _| |__) || |    | \\__. || |`\\ \\| \\__., | |    \\ `.___.'\\ | | | | // | |, | |  | | | |  \n|_______/[___]    '.__.'[__|  \\_]'.__.'[___]    `.____ .'[___]|__]\\'-;__/[___][___||__]  (academic)")
 }
@@ -334,34 +450,50 @@ func handletransfer(reader *bufio.Reader) {
 	val, _ := reader.ReadString('\n')
 	val = strings.TrimSpace(val)
 
-	fmt.Println("Please enter the fee:")
+	fmt.Println("Please enter Gas Price (Gwei) [default: 50]:")
 	fee, _ := reader.ReadString('\n')
 	fee = strings.TrimSpace(fee)
-
-	randstr := uuid.New().String()
-	thedata1 := randstr + to + val + fee
-	sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
-
-	qreq1 := TxReq{
-		PublicKey: global.PublicKey,
-		RandomStr: randstr,
-		Sign1:     sign21,
-		Sign2:     sign22,
-		To:        to,
-		Value:     val,
-		Fee:       fee,
+	if fee == "" {
+		fee = "50" // default 50 Gwei
 	}
-	m1, _ := json.Marshal(qreq1)
-	data2, err := Post("sendtx", m1)
+
+	fmt.Println("Please enter Gas Limit [default: 21000]:")
+	gasLimitStr, _ := reader.ReadString('\n')
+	gasLimitStr = strings.TrimSpace(gasLimitStr)
+
+	// [NEW] Use standard eth_sendRawTransaction instead of custom sendtx
+	// fee is now in Gwei unit (not BKC)
+	txHash, err := sendEthRawTransaction(to, val, fee, gasLimitStr)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Transfer failed:", err)
 		return
 	}
-	if strings.Contains(string(data2), "success") {
-		fmt.Println("Transfer successful.")
-	} else {
-		fmt.Println("Transfer failed.")
-	}
+	fmt.Println("Transfer successful. TxHash:", txHash)
+
+	// ---- OLD custom sendtx path (commented out) ----
+	// randstr := uuid.New().String()
+	// thedata1 := randstr + to + val + fee
+	// sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
+	// qreq1 := TxReq{
+	// 	PublicKey: global.PublicKey,
+	// 	RandomStr: randstr,
+	// 	Sign1:     sign21,
+	// 	Sign2:     sign22,
+	// 	To:        to,
+	// 	Value:     val,
+	// 	Fee:       fee,
+	// }
+	// m1, _ := json.Marshal(qreq1)
+	// data2, err := Post("sendtx", m1)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+	// if strings.Contains(string(data2), "success") {
+	// 	fmt.Println("Transfer successful.")
+	// } else {
+	// 	fmt.Println("Transfer failed.")
+	// }
 
 	return
 }
@@ -681,6 +813,7 @@ func handleopenwallet(reader *bufio.Reader) {
 			RecipientAddress string `json:"recipientAddress"`
 			Amount           string `json:"amount"`
 			Fee              string `json:"fee"`
+			GasLimit         string `json:"gasLimit"`
 		}
 
 		if err := c.ShouldBindJSON(&request); err != nil {
@@ -729,41 +862,53 @@ func handleopenwallet(reader *bufio.Reader) {
 			return
 		}
 
-		randstr := uuid.New().String()
-		thedata1 := ""
-		if request.Fee == "" {
-			thedata1 = randstr + to + request.Amount
-		} else {
-			thedata1 = randstr + to + request.Amount + request.Fee
+		// [NEW] Use standard eth_sendRawTransaction
+		// fee is now in Gwei unit (not BKC)
+		fee := request.Fee
+		if fee == "" {
+			fee = "50" // default 50 Gwei
 		}
-
-		sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
-
-		qreq1 := TxReq{
-			PublicKey: global.PublicKey,
-			RandomStr: randstr,
-			Sign1:     sign21,
-			Sign2:     sign22,
-			To:        to,
-			Value:     request.Amount,
-		}
-		if request.Fee != "" {
-			qreq1.Fee = request.Fee
-		}
-
-		m1, _ := json.Marshal(qreq1)
-		data2, err := Post("sendtx", m1)
+		txHash, err := sendEthRawTransaction(to, request.Amount, fee, request.GasLimit)
 		if err != nil {
-			fmt.Println(err)
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "Transfer failed: " + err.Error()})
 			return
 		}
-		if strings.Contains(string(data2), "success") {
-			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Transfer successful"})
-		} else {
-			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Transfer failed. " + string(data2)})
-		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Transfer successful. TxHash: " + txHash})
+
+		// ---- OLD custom sendtx path (commented out) ----
+		// randstr := uuid.New().String()
+		// thedata1 := ""
+		// if request.Fee == "" {
+		// 	thedata1 = randstr + to + request.Amount
+		// } else {
+		// 	thedata1 = randstr + to + request.Amount + request.Fee
+		// }
+		// sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
+		// qreq1 := TxReq{
+		// 	PublicKey: global.PublicKey,
+		// 	RandomStr: randstr,
+		// 	Sign1:     sign21,
+		// 	Sign2:     sign22,
+		// 	To:        to,
+		// 	Value:     request.Amount,
+		// }
+		// if request.Fee != "" {
+		// 	qreq1.Fee = request.Fee
+		// }
+		// m1, _ := json.Marshal(qreq1)
+		// data2, err := Post("sendtx", m1)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	return
+		// }
+		// if strings.Contains(string(data2), "success") {
+		// 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Transfer successful"})
+		// } else {
+		// 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Transfer failed. " + string(data2)})
+		// }
 
 	})
+
 	freePort, _ := getFreePort()
 	fmt.Println()
 	fmt.Println("/----*************************************************************----\\")
@@ -1881,63 +2026,64 @@ func eth_sendTransaction(request RpcRequest) (interface{}, error) {
 
 func eth_sendRawTransaction(request RpcRequest) (interface{}, error) {
 	rawHex := request.Params[0].(string)
-	var tx types.Transaction
-	err := tx.UnmarshalBinary(common.FromHex(rawHex))
+
+	// [NEW] Forward directly to Supervisor's standard eth_sendRawTransaction (eth_rpc on port 42515)
+	result, err := ethRpcCall("eth_sendRawTransaction", rawHex)
 	if err != nil {
-		fmt.Println(err)
+		log.Printf("eth_sendRawTransaction failed: %v", err)
+		return nil, err
 	}
-	log.Printf("eth_sendRawTransaction tx :%+v \n", tx)
+	var txHash string
+	json.Unmarshal(result, &txHash)
+	log.Printf("eth_sendRawTransaction success, hash: %v", txHash)
+	return txHash, nil
 
-	to := strings.ToLower(tx.To().Hex())
-
-	gas := strconv.FormatUint(tx.Gas(), 10)
-	value := tx.Value().String()
-
-	input1 := common.Bytes2Hex(tx.Data())
-	if len(input1) == 0 {
-		input1 = "0x"
-	}
-
-	rr := uuid.New().String()
-	//thedata := to + input1 + value + gas + rr
-
-	signer := types.NewLondonSigner(tx.ChainId()) // EIP-1559
-
-	fromAccount, err := types.Sender(signer, &tx)
-
-	from := strings.ToLower(fromAccount.Hex())
-
-	req := SendContractReq{
-		PublicKey: from,
-		To:        to,
-		Data:      input1,
-		Value:     value,
-		Gas:       gas,
-		RandomStr: rr,
-		Sign1:     "a",
-		Sign2:     "b",
-	}
-
-	log.Printf("eth_sendRawTransaction req: %+v", req)
-
-	m1, _ := json.Marshal(req)
-	data2, err := Post("eth_sendRawTransaction", m1)
-	if err != nil {
-		fmt.Println(err)
-		return nil, nil
-	}
-	cc1 := RpcResponse{}
-	err = json.Unmarshal(data2, &cc1)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("eth_sendRawTransaction data2", string(data2))
-	fmt.Println("eth_sendRawTransaction cc1", cc1)
-	if cc1.Error != nil {
-		return cc1.Error, errors.New("123")
-	}
-
-	return cc1.Result, nil
+	// ---- OLD custom path: parse tx and reconstruct as SendContractReq ----
+	// var tx types.Transaction
+	// err := tx.UnmarshalBinary(common.FromHex(rawHex))
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// log.Printf("eth_sendRawTransaction tx :%+v \n", tx)
+	// to := strings.ToLower(tx.To().Hex())
+	// gas := strconv.FormatUint(tx.Gas(), 10)
+	// value := tx.Value().String()
+	// input1 := common.Bytes2Hex(tx.Data())
+	// if len(input1) == 0 {
+	// 	input1 = "0x"
+	// }
+	// rr := uuid.New().String()
+	// signer := types.NewLondonSigner(tx.ChainId())
+	// fromAccount, err := types.Sender(signer, &tx)
+	// from := strings.ToLower(fromAccount.Hex())
+	// req := SendContractReq{
+	// 	PublicKey: from,
+	// 	To:        to,
+	// 	Data:      input1,
+	// 	Value:     value,
+	// 	Gas:       gas,
+	// 	RandomStr: rr,
+	// 	Sign1:     "a",
+	// 	Sign2:     "b",
+	// }
+	// log.Printf("eth_sendRawTransaction req: %+v", req)
+	// m1, _ := json.Marshal(req)
+	// data2, err := Post("eth_sendRawTransaction", m1)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return nil, nil
+	// }
+	// cc1 := RpcResponse{}
+	// err = json.Unmarshal(data2, &cc1)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// fmt.Println("eth_sendRawTransaction data2", string(data2))
+	// fmt.Println("eth_sendRawTransaction cc1", cc1)
+	// if cc1.Error != nil {
+	// 	return cc1.Error, errors.New("123")
+	// }
+	// return cc1.Result, nil
 }
 
 func eth_gasPrice(request RpcRequest) interface{} {
@@ -2343,6 +2489,7 @@ func Runhttp() {
 			RecipientAddress string `json:"recipientAddress"`
 			Amount           string `json:"amount"`
 			Fee              string `json:"fee"`
+			GasLimit         string `json:"gasLimit"`
 		}
 
 		if err := c.ShouldBindJSON(&request); err != nil {
@@ -2381,39 +2528,50 @@ func Runhttp() {
 			return
 		}
 
-		randstr := uuid.New().String()
-
-		thedata1 := ""
-		if request.Fee == "" {
-			thedata1 = randstr + to + request.Amount
-		} else {
-			thedata1 = randstr + to + request.Amount + request.Fee
+		// [NEW] Use standard eth_sendRawTransaction
+		// fee is now in Gwei unit (not BKC)
+		fee := request.Fee
+		if fee == "" {
+			fee = "50" // default 50 Gwei
 		}
-
-		sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
-
-		qreq1 := TxReq{
-			PublicKey: global.PublicKey,
-			RandomStr: randstr,
-			Sign1:     sign21,
-			Sign2:     sign22,
-			To:        to,
-			Value:     request.Amount,
-		}
-		if request.Fee != "" {
-			qreq1.Fee = request.Fee
-		}
-		m1, _ := json.Marshal(qreq1)
-		data2, err := Post("sendtx", m1)
+		txHash, err := sendEthRawTransaction(to, request.Amount, fee, request.GasLimit)
 		if err != nil {
-			fmt.Println(err)
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": "Transfer failed: " + err.Error()})
 			return
 		}
-		if strings.Contains(string(data2), "success") {
-			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Transfer successful"})
-		} else {
-			c.JSON(http.StatusOK, gin.H{"success": true, "message": "Transfer failed. " + string(data2)})
-		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Transfer successful. TxHash: " + txHash})
+
+		// ---- OLD custom sendtx path (commented out) ----
+		// randstr := uuid.New().String()
+		// thedata1 := ""
+		// if request.Fee == "" {
+		// 	thedata1 = randstr + to + request.Amount
+		// } else {
+		// 	thedata1 = randstr + to + request.Amount + request.Fee
+		// }
+		// sign21, sign22, _ := utils.SignECDSA(global.PrivateKeyBigInt, thedata1)
+		// qreq1 := TxReq{
+		// 	PublicKey: global.PublicKey,
+		// 	RandomStr: randstr,
+		// 	Sign1:     sign21,
+		// 	Sign2:     sign22,
+		// 	To:        to,
+		// 	Value:     request.Amount,
+		// }
+		// if request.Fee != "" {
+		// 	qreq1.Fee = request.Fee
+		// }
+		// m1, _ := json.Marshal(qreq1)
+		// data2, err := Post("sendtx", m1)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	return
+		// }
+		// if strings.Contains(string(data2), "success") {
+		// 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Transfer successful"})
+		// } else {
+		// 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Transfer failed. " + string(data2)})
+		// }
 
 	})
 

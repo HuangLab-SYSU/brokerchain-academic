@@ -8,6 +8,7 @@
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            color: #000;
         }
         .container {
             max-width: 600px;
@@ -25,16 +26,81 @@
             padding: 8px;
             width: 100%;
             box-sizing: border-box;
+            border: 1px solid #555;
+            border-radius: 4px;
         }
         .transfer-form button {
-            background-color: #4CAF50;
-            color: white;
+            background-color: #000;
+            color: #fff;
             border: none;
             cursor: pointer;
+            font-size: 16px;
+            padding: 12px;
         }
         .transfer-form button:hover {
-            background-color: #45a049;
+            background-color: #333;
         }
+        .transfer-form button:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+        }
+        .fee-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            min-height: 40px;
+        }
+        .fee-row input {
+            width: 80px !important;
+            text-align: center;
+            margin-bottom: 0 !important;
+        }
+        .fee-row button {
+            margin-bottom: 0 !important;
+        }
+        .fee-row span {
+            white-space: nowrap;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #ccc;
+            border-radius: 3px;
+            outline: none;
+            margin-bottom: 4px;
+            padding: 0;
+            border: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #000;
+            border: 2px solid #fff;
+            cursor: pointer;
+            box-shadow: 0 0 2px rgba(0,0,0,0.3);
+        }
+        .preset-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .preset-labels span {
+            cursor: pointer;
+            color: #888;
+            font-size: 12px;
+            position: absolute;
+            transform: translateX(-50%);
+        }
+        .preset-labels .preset-slow  { left: 10%; }
+        .preset-labels .preset-medium { left: 25%; }
+        .preset-labels .preset-fast   { left: 50%; }
         .status {
             margin-top: 10px;
             padding: 10px;
@@ -52,13 +118,6 @@
             background-color: #f2dede;
             color: #a94442;
         }
-        .status {
-            opacity: 1;
-            transition: opacity 5s ease;
-        }
-        .status.resetting {
-            opacity: 0;
-        }
     </style>
 </head>
 <body>
@@ -73,14 +132,44 @@
     <div class="transfer-form">
         <input type="text" id="recipientAddress" placeholder="Recipient Address" required>
         <input type="text" id="amount" placeholder="Amount" required>
-        <input type="text" id="fee" placeholder="Fee" >
-        <button onclick="transfer()">Transfer</button>
+
+        <!-- Gas Price: input box + Gwei label -->
+        <div style="margin-top: 10px;">Gas Price</div>
+        <div class="fee-row">
+            <input type="text" id="fee" value="50" placeholder="50">
+            <span>Gwei</span>
+        </div>
+
+        <!-- Continuous slider 0-200 Gwei -->
+        <input type="range" id="feeSlider" min="0" max="200" value="50" step="1">
+
+        <!-- Preset labels positioned at actual Gwei values -->
+        <div class="preset-labels" style="height: 20px;">
+            <span class="preset-slow" onclick="snapPreset(20)">Slow</span>
+            <span class="preset-medium" onclick="snapPreset(50)">Medium</span>
+            <span class="preset-fast" onclick="snapPreset(100)">Fast</span>
+        </div>
+
+        <!-- Gas Limit -->
+        <div style="margin-top: 10px;">Gas Limit</div>
+        <div class="fee-row">
+            <input type="text" id="gasLimit" value="21000" disabled style="color: #999;">
+            <div id="gasLimitStepper" style="display: none; flex-direction: column; height: 36px;">
+                <button type="button" id="btnGasPlus" class="stepper-btn" style="flex: 1; width: 28px; padding: 0; font-size: 11px; line-height: 1; background: #000; border: 1px solid #ccc; border-bottom: none; border-radius: 2px 2px 0 0; cursor: pointer;" onclick="adjustGasLimit(1)">+</button>
+                <button type="button" id="btnGasMinus" class="stepper-btn" style="flex: 1; width: 28px; padding: 0; font-size: 11px; line-height: 1; background: #000; border: 1px solid #ccc; border-radius: 0 0 2px 2px; cursor: pointer;" onclick="adjustGasLimit(-1)">-</button>
+            </div>
+            <button type="button" id="btnAdvanced" class="gas-advanced-btn" style="width: auto; padding: 8px 12px; background: #000; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; margin-bottom: 0;" onclick="toggleGasLimitAdvanced()">Advanced</button>
+        </div>
+        <div id="gasWarning" style="display: none; color: #FF0000; font-size: 12px; margin-bottom: 10px;">Gas limit may be too low, transaction might fail</div>
+
+        <button id="btnTransfer" onclick="transfer()">Transfer</button>
         <div id="status" class="status"></div>
     </div>
 </div>
 
 <script>
-    // 定时从后端获取账户余额
+    var feeUpdating = false;
+
     function fetchBalance() {
         fetch('/api/balance')
             .then(response => response.json())
@@ -95,20 +184,102 @@
             });
     }
 
-    // 初始加载时获取余额
     fetchBalance();
-
-    // 每2秒刷新一次余额
     setInterval(fetchBalance, 2000);
 
-    // 转账功能
-    function transfer() {
-        const recipientAddress = document.getElementById('recipientAddress').value;
-        const amount = document.getElementById('amount').value;
-        const fee = document.getElementById('fee').value;
+    var slider = document.getElementById('feeSlider');
+    var feeInput = document.getElementById('fee');
 
-        const statusDiv = document.getElementById('status');
-        statusDiv.classList.add('resetting');
+    // Slider -> Input
+    slider.addEventListener('input', function() {
+        if (feeUpdating) return;
+        feeUpdating = true;
+        feeInput.value = slider.value;
+        feeUpdating = false;
+    });
+
+    // Input -> Slider
+    feeInput.addEventListener('input', function() {
+        if (feeUpdating) return;
+        var val = parseFloat(feeInput.value);
+        if (isNaN(val)) return;
+        if (val < 0) val = 0;
+        if (val > 200) val = 200;
+        feeUpdating = true;
+        slider.value = Math.round(val);
+        feeUpdating = false;
+    });
+
+    function snapPreset(value) {
+        feeUpdating = true;
+        slider.value = value;
+        feeInput.value = value;
+        feeUpdating = false;
+    }
+
+    // ---- Gas Limit ----
+    var gasLimitAdvanced = false;
+    function toggleGasLimitAdvanced() {
+        gasLimitAdvanced = !gasLimitAdvanced;
+        var input = document.getElementById('gasLimit');
+        var stepper = document.getElementById('gasLimitStepper');
+        var btn = document.getElementById('btnAdvanced');
+        var warning = document.getElementById('gasWarning');
+        if (gasLimitAdvanced) {
+            input.disabled = false;
+            input.style.color = '';
+            stepper.style.display = 'flex';
+            btn.textContent = 'Simple';
+            validateGasLimit(input.value);
+        } else {
+            input.disabled = true;
+            input.style.color = '#999';
+            stepper.style.display = 'none';
+            btn.textContent = 'Advanced';
+            warning.style.display = 'none';
+            input.value = '21000';
+        }
+    }
+
+    function adjustGasLimit(delta) {
+        var input = document.getElementById('gasLimit');
+        var val = parseInt(input.value) || 0;
+        val += delta;
+        if (val < 0) val = 0;
+        input.value = val;
+        validateGasLimit(val);
+    }
+
+    function validateGasLimit(val) {
+        var input = document.getElementById('gasLimit');
+        var warning = document.getElementById('gasWarning');
+        var num = parseInt(val);
+        if (isNaN(num) || num < 21000) {
+            input.style.color = '#FF0000';
+            warning.style.display = 'block';
+        } else {
+            input.style.color = '';
+            warning.style.display = 'none';
+        }
+    }
+
+    document.getElementById('gasLimit').addEventListener('input', function() {
+        if (gasLimitAdvanced) {
+            validateGasLimit(this.value);
+        }
+    });
+
+    function transfer() {
+        var btn = document.getElementById('btnTransfer');
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+
+        var recipientAddress = document.getElementById('recipientAddress').value;
+        var amount = document.getElementById('amount').value;
+        var fee = document.getElementById('fee').value;
+        var gasLimit = document.getElementById('gasLimit').value;
+
+        var statusDiv = document.getElementById('status');
         statusDiv.textContent = 'Processing transfer...';
         statusDiv.className = 'status loading';
 
@@ -120,34 +291,37 @@
             body: JSON.stringify({
                 recipientAddress: recipientAddress,
                 amount: amount,
-                fee: fee
+                fee: fee,
+                gasLimit: gasLimit
             })
         })
             .then(response => response.json())
             .then(data => {
-                const statusDiv = document.getElementById('status');
-                statusDiv.classList.add('resetting');
+                var statusDiv = document.getElementById('status');
                 if (data.message.includes('successful')) {
-                    statusDiv.textContent = 'Transfer successful!';
+                    statusDiv.textContent = data.message;
                     statusDiv.className = 'status success';
                 } else {
                     statusDiv.textContent = 'Transfer failed: ' + data.message;
                     statusDiv.className = 'status error';
                 }
-                setTimeout(() => {
-                    statusDiv.textContent = ''; // 清空文本
-                    statusDiv.className = 'status'; // 移除success/error类
+                btn.disabled = false;
+                btn.textContent = 'Transfer';
+                setTimeout(function() {
+                    statusDiv.textContent = '';
+                    statusDiv.className = 'status';
                 }, 5000);
             })
             .catch(error => {
                 console.error('Error transferring:', error);
-                const statusDiv = document.getElementById('status');
-                statusDiv.classList.add('resetting');
+                var statusDiv = document.getElementById('status');
                 statusDiv.textContent = 'Transfer failed: ' + error.message;
                 statusDiv.className = 'status error';
-                setTimeout(() => {
-                    statusDiv.textContent = ''; // 清空文本
-                    statusDiv.className = 'status'; // 移除success/error类
+                btn.disabled = false;
+                btn.textContent = 'Transfer';
+                setTimeout(function() {
+                    statusDiv.textContent = '';
+                    statusDiv.className = 'status';
                 }, 5000);
             });
     }
