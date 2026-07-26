@@ -268,6 +268,11 @@ func handletransfer(reader *bufio.Reader) {
 
 	// 将字节切片转换为字符串并打印
 	content := string(data)
+	// Remove possible 0x or 0X prefix
+	content = strings.TrimSpace(content)
+	if strings.HasPrefix(strings.ToLower(content), "0x") {
+		content = content[2:]
+	}
 	global.PrivateKey = content
 	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
 	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
@@ -379,6 +384,11 @@ func handleclaim(reader *bufio.Reader) {
 
 	// 将字节切片转换为字符串并打印
 	content := string(data)
+	// Remove possible 0x or 0X prefix
+	content = strings.TrimSpace(content)
+	if strings.HasPrefix(strings.ToLower(content), "0x") {
+		content = content[2:]
+	}
 	global.PrivateKey = content
 	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
 	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
@@ -434,7 +444,11 @@ func handleopenwallet(reader *bufio.Reader) {
 
 	// 将字节切片转换为字符串并打印
 	content := string(data)
-
+	// Remove possible 0x or 0X prefix
+	content = strings.TrimSpace(content)
+	if strings.HasPrefix(strings.ToLower(content), "0x") {
+		content = content[2:]
+	}
 	global.PrivateKey = content
 	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
 	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
@@ -857,6 +871,11 @@ func handleexistprivatekey(reader *bufio.Reader) bool {
 
 	// 将字节切片转换为字符串并打印
 	content := string(data)
+	// Remove possible 0x or 0X prefix
+	content = strings.TrimSpace(content)
+	if strings.HasPrefix(strings.ToLower(content), "0x") {
+		content = content[2:]
+	}
 	global.PrivateKey = content
 	global.PrivateKeyBigInt.SetString(global.PrivateKey, 16)
 	global.PublicKey, err = GetPublicKeyFromPrivateKey(global.PrivateKey)
