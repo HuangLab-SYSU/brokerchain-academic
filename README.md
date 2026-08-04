@@ -29,6 +29,17 @@ The Technical Roadmap of BrokerChain documents all major upgrades and technical 
 ![Technical Roadmap of BrokerChain](images/img_28.png)
 
 
+### BrokerChain Testnet 7.30 Upgrade (July 30, 2026)
+
+To enhance compatibility with the mainstream ecosystem and improve user experience, the BrokerChain Testnet completed an upgrade on July 30, 2026. This upgrade primarily fixes and supplements several Ethereum-standard RPC interfaces while optimizing the Gas Fee system.
+
+After the upgrade, users can interact with the BrokerChain Testnet via Ethereum-standard interfaces and customize Gas Price and Gas Limit when sending transactions. Additionally, BrokerChain Wallet and BrokerChain Client have been updated with new versions released. While older versions remain compatible, we recommend downloading the latest versions from [BrokerChain's GitHub Release page](https://github.com/HuangLab-SYSU/brokerchain-academic/releases/) for the best experience.
+
+If you encounter any issues, please submit an Issue via GitHub for timely follow-up.
+
+For the complete JSON-RPC API reference, refer to the [BrokerChain JSON-RPC API Documentation](https://dash.broker-chain.com/static/BrokerChain-JSON-RPC-API.pdf).
+
+
 ### Follow our X (Twitter)
 Please follow our X (Twitter) account: https://x.com/0xBrokerChain. We share BrokerChain news and activities in this X account.
 
